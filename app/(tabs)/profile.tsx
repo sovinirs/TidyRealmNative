@@ -10,16 +10,26 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { supabase } from "@/lib/supabase";
 
 export default function ProfileScreen() {
   const router = useRouter();
 
-  const handleSignOut = () => {
-    // Here you would implement your sign out logic
-    // For example, with Supabase or another auth provider
+  const handleSignOut = async () => {
+    try {
+      // Sign out with Supabase
+      const { error } = await supabase.auth.signOut();
 
-    // Navigate back to auth
-    router.replace("/(auth)/signin");
+      if (error) {
+        console.error("Error signing out:", error.message);
+        return;
+      }
+
+      // Navigate back to auth screen after successful sign out
+      router.replace("/(auth)/signin");
+    } catch (err) {
+      console.error("Unexpected error during sign out:", err);
+    }
   };
 
   return (
