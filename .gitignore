@@ -36,3 +36,9 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+# mcp
+mcp/
+
+# cursor mcp rules
+.cursor/

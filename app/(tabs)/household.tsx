@@ -39,14 +39,7 @@ export default function SpacesScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>My Spaces</Text>
-        <TouchableOpacity style={styles.addButton}>
-          <Ionicons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       <FlatList
         data={SPACES}
         renderItem={renderItem}
