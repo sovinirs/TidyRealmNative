@@ -22,7 +22,6 @@ export default function RootLayout() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log("Auth state changed:", session);
       setSession(session);
     });
 
@@ -51,6 +50,11 @@ export default function RootLayout() {
         />
         <Stack.Screen
           name="(tabs)"
+          options={{ headerShown: false }}
+          redirect={!session}
+        />
+        <Stack.Screen
+          name="create-household"
           options={{ headerShown: false }}
           redirect={!session}
         />

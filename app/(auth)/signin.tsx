@@ -12,6 +12,7 @@ import {
 import { Link, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "@/lib/supabase";
+import { checkUserHouseholdMembership } from "@/services/householdService";
 
 export default function SigninScreen() {
   const router = useRouter();
@@ -35,18 +36,80 @@ export default function SigninScreen() {
 
     try {
       // Sign in with Supabase
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email: email,
         password: password,
       });
 
-      if (error) {
-        setError(error.message);
+      if (signInError) {
+        setError(signInError.message);
         return;
       }
 
-      // On success, navigate to the main app
-      router.replace("/(tabs)");
+      // Get the current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setError("Failed to get user information");
+        return;
+      }
+
+      // Check if the user exists in the user_profiles table
+      const { data: userProfile, error: profileError } = await supabase
+        .from("user_profiles")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (profileError && profileError.code !== "PGRST116") {
+        // PGRST116 is the error code for "no rows returned"
+        console.error("Error checking user profile:", profileError);
+      }
+
+      // If user doesn't exist in user_profiles, create a profile
+      if (!userProfile) {
+        const { error: insertError } = await supabase
+          .from("user_profiles")
+          .insert([
+            {
+              user_id: user.id,
+              // Use user metadata if available, otherwise use email as fallback
+              full_name:
+                user.user_metadata?.full_name ||
+                user.email?.split("@")[0] ||
+                "",
+              user_email: user.email,
+              // No need to specify created_at as it has a default value in the schema
+            },
+          ]);
+
+        if (insertError) {
+          console.error("Error creating user profile:", insertError);
+          // Continue with the flow even if profile creation fails
+        }
+      }
+
+      // Check if the user is a member of any household
+      const { isMember, error: membershipError } =
+        await checkUserHouseholdMembership(user.id);
+
+      if (membershipError) {
+        console.error("Error checking household membership:", membershipError);
+        // Continue to main app even if there's an error checking membership
+        router.replace("/create-household");
+        return;
+      }
+
+      // Redirect based on household membership
+      if (isMember) {
+        // User is a member of at least one household, go to main app
+        router.replace("/(tabs)");
+      } else {
+        // User is not a member of any household, go to create household screen
+        router.replace("/create-household");
+      }
     } catch (err) {
       setError("An unexpected error occurred");
       console.error(err);

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -6,47 +6,239 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { supabase } from "@/lib/supabase";
+import {
+  getHouseholdMembers,
+  getUserHouseholds,
+} from "@/services/householdService";
+import CustomModal from "../components/modals/ModalComponent";
+import AddMemberContent from "../components/modals/AddMember";
 
-// Sample data
-const SPACES = [
-  { id: "1", name: "Living Room", tasks: 3, icon: "restaurant" },
-  { id: "2", name: "Kitchen", tasks: 5, icon: "restaurant" },
-  { id: "3", name: "Bedroom", tasks: 2, icon: "bed" },
-  { id: "4", name: "Bathroom", tasks: 4, icon: "water" },
-  { id: "5", name: "Office", tasks: 1, icon: "desktop" },
-  { id: "6", name: "Garage", tasks: 6, icon: "car" },
-];
+// Define the member interface based on the updated schema
+interface Member {
+  id: string;
+  household_id: string;
+  member_id: string;
+  role: "owner" | "admin" | "member" | "guest";
+  status: "active" | "invited" | "left" | "removed";
+  joined_at: string;
+  updated_at: string;
+  invited_by?: string;
+  member: {
+    user_id: string;
+    full_name: string;
+    user_email: string;
+    avatar_url: string | null;
+  };
+  inviter?: {
+    user_id: string;
+    full_name: string;
+  };
+}
 
-export default function SpacesScreen() {
-  const renderItem = ({
-    item,
-  }: {
-    item: { id: string; name: string; tasks: number; icon: string };
-  }) => (
-    <TouchableOpacity style={styles.spaceCard}>
-      <View style={styles.iconContainer}>
-        <Ionicons name={item.icon as any} size={28} color="#4c669f" />
+interface Household {
+  id: string;
+  household_name: string;
+  location: string;
+  created_by: string;
+  created_at: string;
+  status: "active" | "archived" | "deleted";
+  description?: string;
+  household_image_url?: string;
+  updated_at: string;
+}
+
+export default function HouseholdScreen() {
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentHousehold, setCurrentHousehold] = useState<Household | null>(
+    null
+  );
+  const [addMemberModalVisible, setAddMemberModalVisible] = useState(false);
+
+  useEffect(() => {
+    fetchUserHouseholds();
+  }, []);
+
+  const fetchUserHouseholds = async () => {
+    try {
+      // Get the current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        Alert.alert("Error", "User not authenticated");
+        setLoading(false);
+        return;
+      }
+
+      // Get user's households
+      const { data: households, error } = await getUserHouseholds(user.id);
+
+      if (error) {
+        Alert.alert("Error", "Failed to fetch households");
+        setLoading(false);
+        return;
+      }
+
+      if (households && households.length > 0) {
+        // Use the first household
+        setCurrentHousehold(households[0]);
+        // Fetch members of this household
+        fetchHouseholdMembers(households[0].id);
+      } else {
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Unexpected error fetching households:", error);
+      setLoading(false);
+    }
+  };
+
+  const fetchHouseholdMembers = async (householdId: string) => {
+    try {
+      const { data, error } = await getHouseholdMembers(householdId);
+
+      if (error) {
+        Alert.alert("Error", "Failed to fetch household members");
+        setLoading(false);
+        return;
+      }
+
+      if (data) {
+        setMembers(data);
+      }
+
+      setLoading(false);
+    } catch (error) {
+      console.error("Unexpected error fetching members:", error);
+      setLoading(false);
+    }
+  };
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case "owner":
+        return "#4c669f";
+      case "admin":
+        return "#6b8cce";
+      case "member":
+        return "#8aa6e0";
+      case "guest":
+        return "#a8c0f0";
+      default:
+        return "#ccc";
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "active":
+        return "Active";
+      case "invited":
+        return "Invited";
+      case "left":
+        return "Left";
+      case "removed":
+        return "Removed";
+      default:
+        return "Unknown";
+    }
+  };
+
+  const renderMemberItem = ({ item }: { item: Member }) => (
+    <TouchableOpacity style={styles.memberCard}>
+      <View
+        style={[
+          styles.avatarContainer,
+          { backgroundColor: getRoleColor(item.role) + "20" },
+        ]}
+      >
+        {item.member.avatar_url ? (
+          <Image
+            source={{ uri: item.member.avatar_url }}
+            style={styles.avatar}
+          />
+        ) : (
+          <Ionicons name="person" size={32} color={getRoleColor(item.role)} />
+        )}
       </View>
-      <View style={styles.spaceInfo}>
-        <Text style={styles.spaceName}>{item.name}</Text>
-        <Text style={styles.spaceTasks}>{item.tasks} tasks</Text>
+      <View style={styles.memberInfo}>
+        <Text style={styles.memberName}>{item.member.full_name}</Text>
+        <View style={styles.roleContainer}>
+          <Text style={[styles.memberRole, { color: getRoleColor(item.role) }]}>
+            {item.role.charAt(0).toUpperCase() + item.role.slice(1)}
+          </Text>
+          <Text style={styles.memberStatus}>
+            • {getStatusText(item.status)}
+          </Text>
+        </View>
+        <Text style={styles.memberEmail}>{item.member.user_email}</Text>
+        <Text style={styles.joinedDate}>
+          Joined: {new Date(item.joined_at).toLocaleDateString()}
+        </Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color="#ccc" />
     </TouchableOpacity>
   );
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4c669f" />
+        <Text style={styles.loadingText}>Loading household members...</Text>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
-      <FlatList
-        data={SPACES}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        numColumns={2}
-      />
+      <View style={styles.header}>
+        <Text style={styles.title}>Members</Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => setAddMemberModalVisible(true)}
+        >
+          <Text style={styles.addButtonText}>Add Member</Text>
+        </TouchableOpacity>
+      </View>
+      {members.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="people" size={64} color="#ccc" />
+          <Text style={styles.emptyText}>No members found</Text>
+          <Text style={styles.emptySubText}>
+            Invite people to join your household
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={members}
+          renderItem={renderMemberItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
+
+      {/* Add Member Modal */}
+      <CustomModal
+        isVisible={addMemberModalVisible}
+        onClose={() => setAddMemberModalVisible(false)}
+        title="Add Member"
+      >
+        {currentHousehold && (
+          <AddMemberContent
+            onClose={() => setAddMemberModalVisible(false)}
+            householdId={currentHousehold.id}
+            onMemberAdded={() => fetchHouseholdMembers(currentHousehold.id)}
+          />
+        )}
+      </CustomModal>
     </SafeAreaView>
   );
 }
@@ -56,63 +248,128 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f5f5f5",
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#f5f5f5",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#666",
+  },
+  header: {
     padding: 16,
-    backgroundColor: "#fff",
+    paddingBottom: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
   },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "bold",
+    marginBottom: 4,
   },
-  addButton: {
-    backgroundColor: "#4c669f",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
+  location: {
+    fontSize: 14,
+    color: "#666",
   },
   listContent: {
     padding: 12,
   },
-  spaceCard: {
-    flex: 1,
+  memberCard: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#fff",
     borderRadius: 12,
     padding: 16,
-    margin: 4,
+    marginBottom: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
-    alignItems: "center",
   },
-  iconContainer: {
+  avatarContainer: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "#f0f4ff",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
+    marginRight: 16,
   },
-  spaceInfo: {
-    alignItems: "center",
-    marginBottom: 8,
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
-  spaceName: {
-    fontSize: 16,
+  memberInfo: {
+    flex: 1,
+  },
+  memberName: {
+    fontSize: 18,
     fontWeight: "600",
     marginBottom: 4,
   },
-  spaceTasks: {
+  roleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  memberRole: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  memberStatus: {
     fontSize: 14,
     color: "#666",
+    marginLeft: 4,
+  },
+  memberEmail: {
+    fontSize: 12,
+    color: "#666",
+    marginBottom: 2,
+  },
+  joinedDate: {
+    fontSize: 12,
+    color: "#666",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginTop: 16,
+    color: "#666",
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: "#999",
+    marginTop: 8,
+    textAlign: "center",
+  },
+  addButton: {
+    backgroundColor: "#4c669f",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  addButtonText: {
+    fontSize: 12,
+    color: "#fff",
   },
 });
