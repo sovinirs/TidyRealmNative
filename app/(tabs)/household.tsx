@@ -152,41 +152,85 @@ export default function HouseholdScreen() {
     }
   };
 
-  const renderMemberItem = ({ item }: { item: Member }) => (
-    <TouchableOpacity style={styles.memberCard}>
-      <View
-        style={[
-          styles.avatarContainer,
-          { backgroundColor: getRoleColor(item.role) + "20" },
-        ]}
-      >
-        {item.member.avatar_url ? (
-          <Image
-            source={{ uri: item.member.avatar_url }}
-            style={styles.avatar}
-          />
-        ) : (
-          <Ionicons name="person" size={32} color={getRoleColor(item.role)} />
-        )}
-      </View>
-      <View style={styles.memberInfo}>
-        <Text style={styles.memberName}>{item.member.full_name}</Text>
-        <View style={styles.roleContainer}>
-          <Text style={[styles.memberRole, { color: getRoleColor(item.role) }]}>
-            {item.role.charAt(0).toUpperCase() + item.role.slice(1)}
+  const renderMemberItem = ({ item }: { item: Member }) => {
+    // Add a null check for the member object
+    if (!item.member) {
+      // Render a fallback UI for members without profile data
+      return (
+        <TouchableOpacity style={styles.memberCard}>
+          <View
+            style={[
+              styles.avatarContainer,
+              { backgroundColor: getRoleColor(item.role) + "20" },
+            ]}
+          >
+            <Ionicons name="person" size={32} color={getRoleColor(item.role)} />
+          </View>
+          <View style={styles.memberInfo}>
+            <Text style={styles.memberName}>Unknown Member</Text>
+            <View style={styles.roleContainer}>
+              <Text
+                style={[styles.memberRole, { color: getRoleColor(item.role) }]}
+              >
+                {item.role.charAt(0).toUpperCase() + item.role.slice(1)}
+              </Text>
+              <Text style={styles.memberStatus}>
+                • {getStatusText(item.status)}
+              </Text>
+            </View>
+            <Text style={styles.memberEmail}>Pending user</Text>
+            <Text style={styles.joinedDate}>
+              Joined: {new Date(item.joined_at).toLocaleDateString()}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#ccc" />
+        </TouchableOpacity>
+      );
+    }
+
+    // Original rendering for members with profile data
+    return (
+      <TouchableOpacity style={styles.memberCard}>
+        <View
+          style={[
+            styles.avatarContainer,
+            { backgroundColor: getRoleColor(item.role) + "20" },
+          ]}
+        >
+          {item.member.avatar_url ? (
+            <Image
+              source={{ uri: item.member.avatar_url }}
+              style={styles.avatar}
+            />
+          ) : (
+            <Ionicons name="person" size={32} color={getRoleColor(item.role)} />
+          )}
+        </View>
+        <View style={styles.memberInfo}>
+          <Text style={styles.memberName}>
+            {item.member.full_name || "Unnamed User"}
           </Text>
-          <Text style={styles.memberStatus}>
-            • {getStatusText(item.status)}
+          <View style={styles.roleContainer}>
+            <Text
+              style={[styles.memberRole, { color: getRoleColor(item.role) }]}
+            >
+              {item.role.charAt(0).toUpperCase() + item.role.slice(1)}
+            </Text>
+            <Text style={styles.memberStatus}>
+              • {getStatusText(item.status)}
+            </Text>
+          </View>
+          <Text style={styles.memberEmail}>
+            {item.member.user_email || "No email provided"}
+          </Text>
+          <Text style={styles.joinedDate}>
+            Joined: {new Date(item.joined_at).toLocaleDateString()}
           </Text>
         </View>
-        <Text style={styles.memberEmail}>{item.member.user_email}</Text>
-        <Text style={styles.joinedDate}>
-          Joined: {new Date(item.joined_at).toLocaleDateString()}
-        </Text>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color="#ccc" />
-    </TouchableOpacity>
-  );
+        <Ionicons name="chevron-forward" size={20} color="#ccc" />
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -196,6 +240,8 @@ export default function HouseholdScreen() {
       </View>
     );
   }
+
+  console.log(members);
 
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>

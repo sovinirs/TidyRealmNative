@@ -24,15 +24,6 @@ export interface HouseholdMember {
   invited_by?: string;
 }
 
-// Add a function to generate UUIDs
-function generateUUID() {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
 /**
  * Check if a user is a member of any household
  * @param userId The user ID to check
@@ -220,17 +211,26 @@ export const addHouseholdMember = async (
   inviterId: string
 ) => {
   try {
-    // First, check if a user with this email exists
-    const { data: userData, error: userError } = await supabase
-      .from("user_profiles")
-      .select("user_id")
-      .eq("user_email", memberEmail)
-      .single();
+    // Normalize the email by trimming and converting to lowercase
+    const normalizedEmail = memberEmail.trim().toLowerCase();
 
-    let userId = userData?.user_id;
+    console.log("Searching for user with email:", normalizedEmail);
 
-    // If user exists, use their ID
-    if (userId) {
+    // IMPORTANT: Due to RLS policies, we can't directly query for other users
+    // Instead, we'll use a Supabase Function or RPC that has elevated permissions
+
+    // Option 1: Use a Supabase RPC function (recommended)
+    // This requires creating a database function with security definer
+    const { data: userData, error: userError } = await supabase.rpc(
+      "find_user_by_email",
+      { email: normalizedEmail }
+    );
+
+    console.log("userData from RPC:", userData);
+
+    // If RPC is not set up yet, fall back to direct query (will likely fail due to RLS)
+    if (userData.length > 0) {
+      let userId = userData[0].user_id;
       // Add the member to the household
       const { data: member, error: memberError } = await supabase
         .from("household_members")

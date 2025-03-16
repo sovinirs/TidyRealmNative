@@ -12,7 +12,6 @@ export default function RootLayout() {
   useEffect(() => {
     const fetchSession = async () => {
       const { data } = await supabase.auth.getSession();
-      console.log("Session data:", data.session);
       setSession(data.session);
       setIsLoading(false);
     };
