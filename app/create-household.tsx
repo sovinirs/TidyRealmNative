@@ -9,88 +9,44 @@ import {
   Platform,
   ActivityIndicator,
   FlatList,
-  Alert,
-  ScrollView,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "@/lib/supabase";
-import {
-  createHousehold,
-  getUserHouseholds,
-  saveCurrentHouseholdId,
-} from "@/services/householdService";
-import {
-  searchCities,
-  getPopularCities,
-  City,
-} from "@/services/locationService";
+
+import { getPopularCities, City } from "@/services/locationService";
 import { Ionicons } from "@expo/vector-icons";
 
-interface Household {
-  id: string;
-  household_name: string;
-  location: string;
-  created_by: string;
-  created_at: string;
-  status: "active" | "archived" | "deleted";
-  description?: string;
-  household_image_url?: string;
-  updated_at: string;
-}
+// Types
+import { Household } from "@/types/household";
+
+// Stores
+import { useHouseholdStore } from "@/stores/householdStore";
+import { useUserStore } from "@/stores/userStore";
 
 export default function CreateHouseholdScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const mode = (params.mode as string) || "create"; // "create" or "switch"
 
+  const {
+    households,
+    currentHousehold,
+    loading,
+    error,
+    createHousehold,
+    setCurrentHousehold,
+    setLoading,
+    setError,
+  } = useHouseholdStore();
+  const { userProfile } = useUserStore();
+
   const [householdName, setHouseholdName] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState<City | null>(null);
   const [cities, setCities] = useState<City[]>([]);
-  const [loading, setLoading] = useState(true);
+
   const [searchLoading, setSearchLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [households, setHouseholds] = useState<Household[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(mode === "create");
-
-  // Load popular cities initially
-  useEffect(() => {
-    setCities(getPopularCities());
-    fetchUserHouseholds();
-  }, []);
-
-  const fetchUserHouseholds = async () => {
-    try {
-      // Get the current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      // Get user's households
-      const { data: householdsData, error } = await getUserHouseholds(user.id);
-
-      if (error) {
-        console.error("Error fetching households:", error);
-        setLoading(false);
-        return;
-      }
-
-      if (householdsData) {
-        setHouseholds(householdsData);
-      }
-
-      setLoading(false);
-    } catch (error) {
-      console.error("Unexpected error fetching households:", error);
-      setLoading(false);
-    }
-  };
 
   const handleCreateHousehold = async () => {
     // Reset error state
@@ -110,92 +66,19 @@ export default function CreateHouseholdScreen() {
     // Show loading indicator
     setLoading(true);
 
-    try {
-      // Get current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setError("User not authenticated");
-        setLoading(false);
-        return;
-      }
-
-      // Create household
-      const { data, error } = await createHousehold({
-        household_name: householdName.trim(),
-        location: `${selectedLocation.name}, ${
-          selectedLocation.state ? selectedLocation.state + ", " : ""
-        }${selectedLocation.country}`,
-        created_by: user.id,
-      });
-
-      if (error) {
-        console.error("Error creating household:", error);
-
-        // Handle specific error codes
-        if (typeof error === "object" && error !== null) {
-          if ("message" in error && typeof error.message === "string") {
-            setError(error.message);
-
-            // Check if user profile exists
-            const { data: profile, error: profileError } = await supabase
-              .from("user_profiles")
-              .select("user_id")
-              .eq("user_id", user.id)
-              .single();
-
-            if (profileError || !profile) {
-              // Create user profile if it doesn't exist
-              const { error: insertError } = await supabase
-                .from("user_profiles")
-                .insert([
-                  {
-                    user_id: user.id,
-                    full_name:
-                      user.user_metadata?.full_name ||
-                      user.email?.split("@")[0] ||
-                      "",
-                    user_email: user.email,
-                  },
-                ]);
-
-              if (insertError) {
-                console.error("Error creating user profile:", insertError);
-                setError(
-                  "Failed to create user profile. Please try signing out and back in."
-                );
-              } else {
-                setError(
-                  "User profile created. Please try creating the household again."
-                );
-              }
-            }
-          } else if ("message" in error) {
-            setError(String(error.message));
-          } else {
-            setError("Failed to create household");
-          }
-        } else {
-          setError("Failed to create household");
-        }
-        return;
-      }
-
-      // On success, navigate to the main app
-      Alert.alert("Success", "Household created successfully!", [
+    if (userProfile) {
+      await createHousehold(
         {
-          text: "OK",
-          onPress: () => router.replace("/(tabs)"),
+          household_name: householdName.trim(),
+          location: `${selectedLocation.name}, ${
+            selectedLocation.state ? selectedLocation.state + ", " : ""
+          }${selectedLocation.country}`,
         },
-      ]);
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred");
-      console.error(err);
-    } finally {
-      setLoading(false);
+        userProfile.user_id
+      );
     }
+
+    setLoading(false);
   };
 
   const selectCity = (city: City) => {
@@ -205,23 +88,14 @@ export default function CreateHouseholdScreen() {
     );
   };
 
-  const switchToHousehold = async (household: Household) => {
-    try {
-      // Save the selected household ID
-      await saveCurrentHouseholdId(household.id);
-
-      // Navigate back to tabs with the selected household
-      router.replace("/(tabs)");
-    } catch (error) {
-      console.error("Error switching household:", error);
-      Alert.alert("Error", "Failed to switch household. Please try again.");
-    }
-  };
-
   const renderHouseholdItem = ({ item }: { item: Household }) => (
     <TouchableOpacity
       style={styles.householdCard}
-      onPress={() => switchToHousehold(item)}
+      onPress={() => {
+        if (item.id) {
+          setCurrentHousehold(item.id);
+        }
+      }}
     >
       <View style={styles.householdIcon}>
         <Ionicons name="home" size={24} color="#4c669f" />
@@ -230,7 +104,10 @@ export default function CreateHouseholdScreen() {
         <Text style={styles.householdName}>{item.household_name}</Text>
         <Text style={styles.householdLocation}>{item.location}</Text>
         <Text style={styles.householdDate}>
-          Created: {new Date(item.created_at).toLocaleDateString()}
+          Created:{" "}
+          {item.created_at
+            ? new Date(item.created_at).toLocaleDateString()
+            : "N/A"}
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color="#ccc" />
@@ -245,6 +122,17 @@ export default function CreateHouseholdScreen() {
       </View>
     );
   }
+
+  // Load popular cities initially
+  useEffect(() => {
+    setCities(getPopularCities());
+  }, []);
+
+  useEffect(() => {
+    if (currentHousehold) {
+      router.replace("/(tabs)");
+    }
+  }, [currentHousehold]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -380,7 +268,12 @@ export default function CreateHouseholdScreen() {
               <FlatList
                 data={households}
                 renderItem={renderHouseholdItem}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => {
+                  if (item.id) {
+                    return item.id;
+                  }
+                  return "no-id";
+                }}
                 contentContainerStyle={styles.householdsList}
               />
             )}

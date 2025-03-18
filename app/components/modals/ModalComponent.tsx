@@ -1,20 +1,14 @@
 import React from "react";
 import { Modal, View, StyleSheet, TouchableOpacity, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-
-type Props = {
-  isVisible: boolean;
-  onClose: () => void;
-  children: React.ReactNode;
-  title?: string;
-};
+import { ModalProps } from "@/types/components";
 
 export default function CustomModal({
   isVisible,
   onClose,
   children,
   title,
-}: Props) {
+}: ModalProps) {
   return (
     <Modal
       animationType="slide"

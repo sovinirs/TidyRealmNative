@@ -13,16 +13,17 @@ import {
 } from "react-native";
 import { Link, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "@/lib/supabase";
+
+import { useUserStore } from "@/stores/userStore";
 
 export default function SignupScreen() {
   const router = useRouter();
+  const { error, loading, setError, setLoading, signUp } = useUserStore();
+
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [name, setName] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const handleSignup = async () => {
     // Reset error state
@@ -42,40 +43,16 @@ export default function SignupScreen() {
     // Show loading indicator
     setLoading(true);
 
-    try {
-      // Sign up with Supabase
-      const { data, error } = await supabase.auth.signUp({
-        email: email,
-        password: password,
-        options: {
-          data: {
-            full_name: name,
-          },
-        },
-      });
+    // Sign up with Supabase
+    await signUp(email, password, name);
 
-      if (error) {
-        setError(error.message);
-        return;
-      }
+    Alert.alert(
+      "Verification Required",
+      "Please check your email for a verification link to complete your registration."
+    );
+    router.replace("/(auth)/signin");
 
-      if (!data.session) {
-        // If email confirmation is required
-        Alert.alert(
-          "Verification Required",
-          "Please check your email for a verification link to complete your registration."
-        );
-        router.replace("/(auth)/signin");
-      } else {
-        // If email confirmation is not required, user is automatically signed in
-        router.replace("/(tabs)");
-      }
-    } catch (err) {
-      setError("Failed to create account. Please try again.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(false);
   };
 
   return (

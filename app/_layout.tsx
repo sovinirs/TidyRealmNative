@@ -1,23 +1,25 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { Stack } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { supabase } from "../lib/supabase";
-import { Session } from "@supabase/supabase-js";
+
 import { ActivityIndicator, View } from "react-native";
 
+// Stores
+import { useSessionStore } from "@/stores/sessionStore";
+import { useUserStore } from "@/stores/userStore";
+import { useHouseholdStore } from "@/stores/householdStore";
+
 export default function RootLayout() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { session, loading, fetchSession, setSession } = useSessionStore();
+  const { userProfile, getUserProfile } = useUserStore();
+  const { fetchUserHouseholds } = useHouseholdStore();
 
   useEffect(() => {
-    const fetchSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      setIsLoading(false);
-    };
-
     fetchSession();
+  }, []);
 
+  useEffect(() => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -27,7 +29,19 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (isLoading) {
+  useEffect(() => {
+    if (session) {
+      getUserProfile(session.user.id);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (userProfile) {
+      fetchUserHouseholds(userProfile.user_id);
+    }
+  }, [userProfile]);
+
+  if (loading) {
     return (
       <SafeAreaProvider>
         <View

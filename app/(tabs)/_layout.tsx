@@ -1,19 +1,11 @@
 import React, { useEffect, useState, useRef } from "react";
+import { Tabs, useRouter, usePathname } from "expo-router";
 import {
-  useRootNavigationState,
-  Tabs,
-  useRouter,
-  usePathname,
-} from "expo-router";
-import {
-  useColorScheme,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
-  Modal,
   FlatList,
   Animated,
 } from "react-native";
@@ -22,12 +14,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import CustomModal from "../components/modals/ModalComponent";
 import ProfileContent from "../components/modals/ProfileContent";
 import AddTaskContent from "../components/modals/AddTask";
-import { supabase } from "@/lib/supabase";
-import {
-  getUserHouseholds,
-  saveCurrentHouseholdId,
-  getCurrentHouseholdId,
-} from "@/services/householdService";
+
+// Stores
+import { useHouseholdStore } from "@/stores/householdStore";
+import { useUserStore } from "@/stores/userStore";
+
+// Types
+import { Household } from "@/types/household";
 
 const Colors = {
   light: {
@@ -36,49 +29,56 @@ const Colors = {
     tabIconSelected: "#4c669f",
     background: "#fff",
   },
-  dark: {
-    tint: "#4FD1C5",
-    tabIconDefault: "#ccc",
-    tabIconSelected: "#4FD1C5",
-    background: "#000",
-  },
 };
 
-interface Household {
-  id: string;
-  household_name: string;
-  location: string;
-  created_by: string;
-  created_at: string;
-  status: "active" | "archived" | "deleted";
-  description?: string;
-  household_image_url?: string;
-  updated_at: string;
-}
-
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const colors = Colors["light"];
   const router = useRouter();
   const pathname = usePathname();
+
+  const { households, currentHousehold, loading, setCurrentHousehold } =
+    useHouseholdStore();
 
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [addTaskModalVisible, setAddTaskModalVisible] = useState(false);
   const [householdDropdownVisible, setHouseholdDropdownVisible] =
     useState(false);
-  const { routes } = useRootNavigationState();
-  const [currentHouseholdName, setCurrentHouseholdName] = useState<string>("");
-  const [currentHouseholdLocation, setCurrentHouseholdLocation] =
-    useState<string>("");
-  const [currentHouseholdId, setCurrentHouseholdId] = useState<string>("");
-  const [loading, setLoading] = useState(true);
+
   const [streak, setStreak] = useState(0);
-  const [households, setHouseholds] = useState<Household[]>([]);
   const dropdownAnimation = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    fetchUserHouseholds();
-  }, []);
+  const goToCreateHousehold = () => {
+    setHouseholdDropdownVisible(false);
+    router.push({
+      pathname: "/create-household",
+      params: { mode: "switch" },
+    });
+  };
+
+  const renderHouseholdItem = ({ item }: { item: Household }) => (
+    <TouchableOpacity
+      style={[
+        styles.dropdownItem,
+        item.id === currentHousehold?.id && styles.selectedDropdownItem,
+      ]}
+      onPress={() => setCurrentHousehold(item.id)}
+    >
+      <View style={styles.dropdownItemContent}>
+        <Ionicons
+          name="home-outline"
+          size={20}
+          color={item.id === currentHousehold?.id ? colors.tint : "#666"}
+        />
+        <View style={styles.dropdownItemText}>
+          <Text style={styles.dropdownItemTitle}>{item.household_name}</Text>
+          <Text style={styles.dropdownItemSubtitle}>{item.location}</Text>
+        </View>
+      </View>
+      {item.id === currentHousehold?.id && (
+        <Ionicons name="checkmark" size={20} color={colors.tint} />
+      )}
+    </TouchableOpacity>
+  );
 
   useEffect(() => {
     if (householdDropdownVisible) {
@@ -96,107 +96,11 @@ export default function TabLayout() {
     }
   }, [householdDropdownVisible]);
 
-  const fetchUserHouseholds = async () => {
-    try {
-      // Get the current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      // Get user's households
-      const { data: householdsData, error } = await getUserHouseholds(user.id);
-
-      if (error) {
-        console.error("Error fetching households:", error);
-        setLoading(false);
-        return;
-      }
-
-      if (householdsData && householdsData.length > 0) {
-        setHouseholds(householdsData);
-
-        // Check if there's a saved household ID
-        const savedHouseholdId = await getCurrentHouseholdId();
-
-        // Find the saved household or default to the first one
-        let currentHousehold = householdsData[0];
-        if (savedHouseholdId) {
-          const savedHousehold = householdsData.find(
-            (h) => h.id === savedHouseholdId
-          );
-          if (savedHousehold) {
-            currentHousehold = savedHousehold;
-          }
-        }
-
-        // Set current household info
-        setCurrentHouseholdName(currentHousehold.household_name);
-        setCurrentHouseholdLocation(currentHousehold.location);
-        setCurrentHouseholdId(currentHousehold.id);
-
-        // Save the current household ID
-        await saveCurrentHouseholdId(currentHousehold.id);
-
-        // TODO: Fetch streak data
-        setStreak(10); // Placeholder
-      }
-
-      setLoading(false);
-    } catch (error) {
-      console.error("Unexpected error fetching households:", error);
-      setLoading(false);
+  useEffect(() => {
+    if (!currentHousehold) {
+      router.replace("/create-household");
     }
-  };
-
-  const switchHousehold = async (household: Household) => {
-    setCurrentHouseholdName(household.household_name);
-    setCurrentHouseholdLocation(household.location);
-    setCurrentHouseholdId(household.id);
-    setHouseholdDropdownVisible(false);
-
-    // Save the selected household ID
-    await saveCurrentHouseholdId(household.id);
-
-    // You might want to refresh other data based on the selected household
-  };
-
-  const goToCreateHousehold = () => {
-    setHouseholdDropdownVisible(false);
-    router.push({
-      pathname: "/create-household",
-      params: { mode: "switch" },
-    });
-  };
-
-  const renderHouseholdItem = ({ item }: { item: Household }) => (
-    <TouchableOpacity
-      style={[
-        styles.dropdownItem,
-        item.id === currentHouseholdId && styles.selectedDropdownItem,
-      ]}
-      onPress={() => switchHousehold(item)}
-    >
-      <View style={styles.dropdownItemContent}>
-        <Ionicons
-          name="home-outline"
-          size={20}
-          color={item.id === currentHouseholdId ? colors.tint : "#666"}
-        />
-        <View style={styles.dropdownItemText}>
-          <Text style={styles.dropdownItemTitle}>{item.household_name}</Text>
-          <Text style={styles.dropdownItemSubtitle}>{item.location}</Text>
-        </View>
-      </View>
-      {item.id === currentHouseholdId && (
-        <Ionicons name="checkmark" size={20} color={colors.tint} />
-      )}
-    </TouchableOpacity>
-  );
+  }, [currentHousehold]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -212,8 +116,12 @@ export default function TabLayout() {
               }
             >
               <View style={styles.householdInfo}>
-                <Text style={styles.title}>{currentHouseholdName}</Text>
-                <Text style={styles.location}>{currentHouseholdLocation}</Text>
+                <Text style={styles.title}>
+                  {currentHousehold?.household_name}
+                </Text>
+                <Text style={styles.location}>
+                  {currentHousehold?.location}
+                </Text>
               </View>
               <Ionicons
                 name={householdDropdownVisible ? "chevron-up" : "chevron-down"}
