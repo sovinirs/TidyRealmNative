@@ -92,9 +92,7 @@ export default function CreateHouseholdScreen() {
     <TouchableOpacity
       style={styles.householdCard}
       onPress={() => {
-        if (item.id) {
-          setCurrentHousehold(item.id);
-        }
+        setCurrentHousehold(item.id);
       }}
     >
       <View style={styles.householdIcon}>
@@ -268,12 +266,7 @@ export default function CreateHouseholdScreen() {
               <FlatList
                 data={households}
                 renderItem={renderHouseholdItem}
-                keyExtractor={(item) => {
-                  if (item.id) {
-                    return item.id;
-                  }
-                  return "no-id";
-                }}
+                keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.householdsList}
               />
             )}

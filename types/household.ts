@@ -4,7 +4,10 @@ export interface HouseholdState {
   members: HouseholdMember[];
   loading: boolean;
   error: string | null;
-  createHousehold: (household: Household, userId: string) => Promise<void>;
+  createHousehold: (
+    household: HouseholdCreate,
+    userId: string
+  ) => Promise<void>;
   fetchUserHouseholds: (userId: string) => Promise<void>;
   setCurrentHousehold: (householdId: string) => void;
   fetchHouseholdMembers: (householdId: string) => Promise<void>;
@@ -22,13 +25,20 @@ export type MemberRole = "owner" | "admin" | "member" | "guest";
 export type MemberStatus = "active" | "invited" | "left" | "removed";
 export type HouseholdStatus = "active" | "archived" | "deleted";
 
-export interface Household {
-  id?: string;
+export interface HouseholdCreate {
   household_name: string;
   location: string;
-  created_by?: string;
-  created_at?: string;
-  status?: HouseholdStatus;
+  description?: string;
+  household_image_url?: string;
+}
+
+export interface Household {
+  id: string;
+  household_name: string;
+  location: string;
+  created_by: string;
+  created_at: string;
+  status: HouseholdStatus;
   description?: string;
   household_image_url?: string;
   updated_at?: string;
