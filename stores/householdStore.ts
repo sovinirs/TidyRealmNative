@@ -141,7 +141,50 @@ export const useHouseholdStore = create<HouseholdState>((set, get) => ({
   },
 
   removeMemberFromHousehold: async (householdId: string, memberId: string) => {
-    // Add comments
+    set({ loading: true });
+    try {
+      // Check if member is the only person
+      const { data: members, error: membersError } = await supabase
+        .from("household_members")
+        .select("id")
+        .eq("household_id", householdId)
+        .eq("status", "active");
+
+      if (membersError) throw membersError;
+
+      // Update member and household status based on member count
+      const { error: updateError } = await supabase
+        .from("household_members")
+        .update({ status: "left" })
+        .eq("household_id", householdId)
+        .eq("member_id", memberId);
+
+      if (updateError) throw updateError;
+
+      if (members.length === 1) {
+        const { error: householdError } = await supabase
+          .from("households")
+          .update({ status: "archived" })
+          .eq("id", householdId);
+
+        if (householdError) throw householdError;
+      }
+
+      // Refresh members list
+      await get().fetchHouseholdMembers(householdId);
+
+      // Update current household
+      const { households } = get();
+      if (households.length > 0) {
+        await get().fetchUserHouseholds(memberId, households[0].id);
+      } else {
+        set({ currentHousehold: null });
+      }
+
+      set({ loading: false });
+    } catch (error) {
+      handleError(error, set);
+    }
   },
 
   setSwitchHouseholdTrigger: (trigger: boolean) => {
