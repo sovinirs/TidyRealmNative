@@ -22,10 +22,12 @@ export default function AddTaskContent({ onClose }: Props) {
     React.ComponentProps<typeof Ionicons>["name"]
   >("help-circle-outline"); // Default icon
   const [involvedMembers, setInvolvedMembers] = useState<string[]>([]);
+  const [involvementType, setInvolvementType] = useState<string>("group");
   const [frequency, setFrequency] = useState("once");
   const [frequencyNumber, setFrequencyNumber] = useState("1");
   const [frequencyUnit, setFrequencyUnit] = useState("day");
   const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
   const [weekendsOnly, setWeekendsOnly] = useState(false);
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [priority, setPriority] = useState("medium");
@@ -36,6 +38,11 @@ export default function AddTaskContent({ onClose }: Props) {
     { id: "1", name: "John" },
     { id: "2", name: "Sarah" },
     { id: "3", name: "Mike" },
+  ];
+
+  const involvementTypes = [
+    { id: "1", name: "Group" },
+    { id: "2", name: "Round Robin" },
   ];
 
   // Function to determine icon based on task name
@@ -161,6 +168,28 @@ export default function AddTaskContent({ onClose }: Props) {
       </View>
 
       <View style={styles.formGroup}>
+        <Text style={styles.label}>Involvement Type</Text>
+        <View style={styles.membersContainer}>
+          {involvementTypes.map((involvementTypeElement) => (
+            <TouchableOpacity
+              key={involvementTypeElement.id}
+              style={styles.memberItem}
+              onPress={() => setInvolvementType(involvementTypeElement.id)}
+            >
+              <Text style={styles.memberName}>
+                {involvementTypeElement.name}
+              </Text>
+              <View style={styles.checkbox}>
+                {involvementTypeElement.id === involvementType && (
+                  <Ionicons name="checkmark" size={18} color="#4c669f" />
+                )}
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.formGroup}>
         <Text style={styles.label}>Frequency</Text>
         <View style={styles.frequencyContainer}>
           <TouchableOpacity
@@ -267,11 +296,27 @@ export default function AddTaskContent({ onClose }: Props) {
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>Start Date</Text>
-        <TouchableOpacity style={styles.dateButton}>
-          <Text style={styles.dateText}>{startDate.toLocaleDateString()}</Text>
-          <Ionicons name="calendar-outline" size={20} color="#4c669f" />
-        </TouchableOpacity>
+        <View style={styles.dateRow}>
+          <View style={styles.dateColumn}>
+            <Text style={styles.label}>Start Date</Text>
+            <TouchableOpacity style={styles.dateButton}>
+              <Text style={styles.dateText}>
+                {startDate.toLocaleDateString()}
+              </Text>
+              <Ionicons name="calendar-outline" size={20} color="#4c669f" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.dateColumn}>
+            <Text style={styles.label}>End Date</Text>
+            <TouchableOpacity style={styles.dateButton}>
+              <Text style={styles.dateText}>
+                {endDate.toLocaleDateString()}
+              </Text>
+              <Ionicons name="calendar-outline" size={20} color="#4c669f" />
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {shouldShowWeekendOption() && (
           <View style={styles.weekendOption}>
@@ -482,5 +527,12 @@ const styles = StyleSheet.create({
   helperText: {
     color: "#999",
     marginTop: 8,
+  },
+  dateRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  dateColumn: {
+    flex: 1,
   },
 });
