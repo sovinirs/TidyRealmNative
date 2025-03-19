@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
-import { UserState } from "@/types/user";
+import { UserState, UserProfile, User } from "@/types/user";
 
 export const useUserStore = create<UserState>((set, get) => ({
   user: null,
@@ -29,7 +29,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
 
-  signIn: async (email: string, password: string) => {
+  signIn: async (email: string, password: string): Promise<User | null> => {
     set({ loading: true, error: null });
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -43,9 +43,12 @@ export const useUserStore = create<UserState>((set, get) => ({
         data: { user },
       } = await supabase.auth.getUser();
 
-      set({ user, loading: false });
+      set({ user, loading: false, error: null });
+
+      return user;
     } catch (error) {
       handleError(error, set);
+      return null;
     }
   },
 
@@ -56,7 +59,7 @@ export const useUserStore = create<UserState>((set, get) => ({
 
       if (error) throw error;
 
-      set({ user: null, loading: false });
+      set({ user: null, loading: false, error: null });
     } catch (error) {
       handleError(error, set);
     }
@@ -78,7 +81,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
 
-  getUserProfile: async (userId: string) => {
+  getUserProfile: async (userId: string): Promise<UserProfile | null> => {
     set({ loading: true });
     try {
       const { data: userProfile, error } = await supabase
@@ -91,9 +94,12 @@ export const useUserStore = create<UserState>((set, get) => ({
 
       if (error) throw error;
 
-      set({ userProfile, loading: false });
+      set({ userProfile, loading: false, error: null });
+
+      return userProfile;
     } catch (error) {
       handleError(error, set);
+      return null;
     }
   },
 

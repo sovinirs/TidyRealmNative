@@ -4,10 +4,10 @@ export interface UserState {
   loading: boolean;
   error: string | null;
   signUp: (email: string, password: string, name: string) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<User | null>;
   signOut: () => Promise<void>;
   checkUser: () => Promise<void>;
-  getUserProfile: (userId: string) => Promise<void>;
+  getUserProfile: (userId: string) => Promise<UserProfile | null>;
   createProfileForLoggedInUser: () => Promise<void>;
   setError: (error: string) => void;
   setLoading: (loading: boolean) => void;

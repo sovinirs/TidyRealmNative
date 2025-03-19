@@ -19,7 +19,6 @@ export default function SigninScreen() {
 
   // auth store
   const {
-    user,
     userProfile,
     loading,
     error,
@@ -44,14 +43,14 @@ export default function SigninScreen() {
     }
 
     // Sign in with Supabase
-    await signIn(email, password);
+    const user = await signIn(email, password);
 
     // Update user profile
     if (user) {
-      await getUserProfile(user.id);
+      const functionBlockUserProfile = await getUserProfile(user.id);
 
       // If user doesn't exist in user_profiles, create a profile
-      if (!userProfile) {
+      if (!functionBlockUserProfile) {
         await createProfileForLoggedInUser();
       }
     }

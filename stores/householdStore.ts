@@ -1,15 +1,16 @@
 import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
-import { Household, HouseholdState, MemberRole } from "@/types/household";
+import { HouseholdCreate, HouseholdState, MemberRole } from "@/types/household";
 
 export const useHouseholdStore = create<HouseholdState>((set, get) => ({
   households: [],
   currentHousehold: null,
+  switchHouseholdTrigger: false,
   members: [],
   loading: false,
   error: null,
 
-  createHousehold: async (household: Household, userId: string) => {
+  createHousehold: async (household: HouseholdCreate, userId: string) => {
     set({ loading: true });
     try {
       const { data, error } = await supabase.rpc(
@@ -23,14 +24,15 @@ export const useHouseholdStore = create<HouseholdState>((set, get) => ({
         loading: false,
       });
 
-      get().fetchUserHouseholds(userId);
+      get().fetchUserHouseholds(userId, data.id);
+      get().setSwitchHouseholdTrigger(false);
     } catch (error) {
       console.error("Error creating household:", error);
       handleError(error, set);
     }
   },
 
-  fetchUserHouseholds: async (userId: string) => {
+  fetchUserHouseholds: async (userId: string, currentHouseholdId?: string) => {
     set({ loading: true });
     try {
       const { data: households, error } = await supabase
@@ -58,7 +60,7 @@ export const useHouseholdStore = create<HouseholdState>((set, get) => ({
       });
 
       if (households.length > 0) {
-        get().setCurrentHousehold(households[0].id);
+        get().setCurrentHousehold(currentHouseholdId || households[0].id);
       }
     } catch (error) {
       handleError(error, set);
@@ -122,18 +124,28 @@ export const useHouseholdStore = create<HouseholdState>((set, get) => ({
             household_id: householdId,
             member_id: userId,
             role,
-            status: "invited",
+            status: "active",
             invited_by: inviterId,
           },
         ]);
 
         // Refresh members list
         await get().fetchHouseholdMembers(householdId);
+        set({ loading: false });
+      } else {
+        set({ error: "User not found", loading: false });
       }
-      set({ loading: false });
     } catch (error) {
       set({ error: "Failed to add member", loading: false });
     }
+  },
+
+  removeMemberFromHousehold: async (householdId: string, memberId: string) => {
+    // Add comments
+  },
+
+  setSwitchHouseholdTrigger: (trigger: boolean) => {
+    set({ switchHouseholdTrigger: trigger });
   },
 
   setLoading: (loading: boolean) => {

@@ -11,148 +11,50 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { supabase } from "@/lib/supabase";
-import {
-  getHouseholdMembers,
-  getUserHouseholds,
-} from "@/services/householdService";
 import CustomModal from "../components/modals/ModalComponent";
 import AddMemberContent from "../components/modals/AddMember";
 
-// Define the member interface based on the updated schema
-interface Member {
-  id: string;
-  household_id: string;
-  member_id: string;
-  role: "owner" | "admin" | "member" | "guest";
-  status: "active" | "invited" | "left" | "removed";
-  joined_at: string;
-  updated_at: string;
-  invited_by?: string;
-  member: {
-    user_id: string;
-    full_name: string;
-    user_email: string;
-    avatar_url: string | null;
-  };
-  inviter?: {
-    user_id: string;
-    full_name: string;
-  };
-}
+import { useHouseholdStore } from "@/stores/householdStore";
+import { useUserStore } from "@/stores/userStore";
 
-interface Household {
-  id: string;
-  household_name: string;
-  location: string;
-  created_by: string;
-  created_at: string;
-  status: "active" | "archived" | "deleted";
-  description?: string;
-  household_image_url?: string;
-  updated_at: string;
-}
+import { HouseholdMember } from "@/types/household";
 
 export default function HouseholdScreen() {
-  const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [currentHousehold, setCurrentHousehold] = useState<Household | null>(
-    null
-  );
+  const {
+    members,
+    currentHousehold,
+    loading,
+    fetchHouseholdMembers,
+    removeMemberFromHousehold,
+  } = useHouseholdStore();
+  const { userProfile } = useUserStore();
+
   const [addMemberModalVisible, setAddMemberModalVisible] = useState(false);
 
+  const handleLeaveHousehold = () => {
+    Alert.alert("Are you sure about leaving this household?", "", [
+      {
+        text: "No",
+        style: "cancel",
+      },
+      {
+        text: "Yes",
+        onPress: () => {
+          if (currentHousehold && userProfile) {
+            removeMemberFromHousehold(currentHousehold.id, userProfile.user_id);
+          }
+        },
+      },
+    ]);
+  };
+
   useEffect(() => {
-    fetchUserHouseholds();
-  }, []);
-
-  const fetchUserHouseholds = async () => {
-    try {
-      // Get the current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        Alert.alert("Error", "User not authenticated");
-        setLoading(false);
-        return;
-      }
-
-      // Get user's households
-      const { data: households, error } = await getUserHouseholds(user.id);
-
-      if (error) {
-        Alert.alert("Error", "Failed to fetch households");
-        setLoading(false);
-        return;
-      }
-
-      if (households && households.length > 0) {
-        // Use the first household
-        setCurrentHousehold(households[0]);
-        // Fetch members of this household
-        fetchHouseholdMembers(households[0].id);
-      } else {
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error("Unexpected error fetching households:", error);
-      setLoading(false);
+    if (currentHousehold) {
+      fetchHouseholdMembers(currentHousehold.id);
     }
-  };
+  }, [currentHousehold]);
 
-  const fetchHouseholdMembers = async (householdId: string) => {
-    try {
-      const { data, error } = await getHouseholdMembers(householdId);
-
-      if (error) {
-        Alert.alert("Error", "Failed to fetch household members");
-        setLoading(false);
-        return;
-      }
-
-      if (data) {
-        setMembers(data);
-      }
-
-      setLoading(false);
-    } catch (error) {
-      console.error("Unexpected error fetching members:", error);
-      setLoading(false);
-    }
-  };
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case "owner":
-        return "#4c669f";
-      case "admin":
-        return "#6b8cce";
-      case "member":
-        return "#8aa6e0";
-      case "guest":
-        return "#a8c0f0";
-      default:
-        return "#ccc";
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "active":
-        return "Active";
-      case "invited":
-        return "Invited";
-      case "left":
-        return "Left";
-      case "removed":
-        return "Removed";
-      default:
-        return "Unknown";
-    }
-  };
-
-  const renderMemberItem = ({ item }: { item: Member }) => {
+  const renderMemberItem = ({ item }: { item: HouseholdMember }) => {
     // Add a null check for the member object
     if (!item.member) {
       // Render a fallback UI for members without profile data
@@ -241,18 +143,26 @@ export default function HouseholdScreen() {
     );
   }
 
-  console.log(members);
-
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <View style={styles.header}>
         <Text style={styles.title}>Members</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setAddMemberModalVisible(true)}
-        >
-          <Text style={styles.addButtonText}>Add Member</Text>
-        </TouchableOpacity>
+        <View style={styles.addLeaveButtonsRow}>
+          <TouchableOpacity
+            style={styles.leaveButton}
+            onPress={() => {
+              handleLeaveHousehold();
+            }}
+          >
+            <Text style={styles.leaveButtonText}>Leave Household</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => setAddMemberModalVisible(true)}
+          >
+            <Text style={styles.addButtonText}>Add Member</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       {members.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -288,6 +198,36 @@ export default function HouseholdScreen() {
     </SafeAreaView>
   );
 }
+
+const getRoleColor = (role: string) => {
+  switch (role) {
+    case "owner":
+      return "#4c669f";
+    case "admin":
+      return "#6b8cce";
+    case "member":
+      return "#8aa6e0";
+    case "guest":
+      return "#a8c0f0";
+    default:
+      return "#ccc";
+  }
+};
+
+const getStatusText = (status: string) => {
+  switch (status) {
+    case "active":
+      return "Active";
+    case "invited":
+      return "Invited";
+    case "left":
+      return "Left";
+    case "removed":
+      return "Removed";
+    default:
+      return "Unknown";
+  }
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -405,7 +345,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#4c669f",
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 4,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
@@ -417,5 +357,19 @@ const styles = StyleSheet.create({
   addButtonText: {
     fontSize: 12,
     color: "#fff",
+  },
+  addLeaveButtonsRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  leaveButton: {
+    backgroundColor: "#ff3b30",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 4,
+  },
+  leaveButtonText: {
+    color: "#fff",
+    fontSize: 12,
   },
 });

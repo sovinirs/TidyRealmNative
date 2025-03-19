@@ -1,6 +1,7 @@
 export interface HouseholdState {
   households: Household[];
   currentHousehold: Household | null;
+  switchHouseholdTrigger: boolean;
   members: HouseholdMember[];
   loading: boolean;
   error: string | null;
@@ -8,7 +9,10 @@ export interface HouseholdState {
     household: HouseholdCreate,
     userId: string
   ) => Promise<void>;
-  fetchUserHouseholds: (userId: string) => Promise<void>;
+  fetchUserHouseholds: (
+    userId: string,
+    currentHouseholdId?: string
+  ) => Promise<void>;
   setCurrentHousehold: (householdId: string) => void;
   fetchHouseholdMembers: (householdId: string) => Promise<void>;
   addMember: (
@@ -17,8 +21,13 @@ export interface HouseholdState {
     role: MemberRole,
     inviterId: string
   ) => Promise<void>;
+  removeMemberFromHousehold: (
+    householdId: string,
+    memberId: string
+  ) => Promise<void>;
   setLoading: (loading: boolean) => void;
   setError: (error: string) => void;
+  setSwitchHouseholdTrigger: (trigger: boolean) => void;
 }
 
 export type MemberRole = "owner" | "admin" | "member" | "guest";

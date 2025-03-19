@@ -13,7 +13,6 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { getPopularCities, City } from "@/services/locationService";
 import { Ionicons } from "@expo/vector-icons";
 
 // Types
@@ -23,30 +22,46 @@ import { Household } from "@/types/household";
 import { useHouseholdStore } from "@/stores/householdStore";
 import { useUserStore } from "@/stores/userStore";
 
+// Services
+import { getPopularCities, City } from "@/services/locationService";
+
 export default function CreateHouseholdScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const mode = (params.mode as string) || "create"; // "create" or "switch"
+  const mode = (params.mode as string) || "create";
 
   const {
     households,
     currentHousehold,
+    switchHouseholdTrigger,
     loading,
     error,
     createHousehold,
     setCurrentHousehold,
+    setSwitchHouseholdTrigger,
     setLoading,
     setError,
   } = useHouseholdStore();
-  const { userProfile } = useUserStore();
+  const { userProfile, signOut } = useUserStore();
 
+  // Create Household Form States
   const [householdName, setHouseholdName] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState<City | null>(null);
   const [cities, setCities] = useState<City[]>([]);
-
   const [searchLoading, setSearchLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(mode === "create");
+
+  // Load popular cities initially
+  useEffect(() => {
+    setCities(getPopularCities());
+  }, []);
+
+  useEffect(() => {
+    if (!switchHouseholdTrigger && currentHousehold) {
+      router.replace("/(tabs)");
+    }
+  }, [currentHousehold, switchHouseholdTrigger]);
 
   const handleCreateHousehold = async () => {
     // Reset error state
@@ -112,167 +127,156 @@ export default function CreateHouseholdScreen() {
     </TouchableOpacity>
   );
 
-  if (loading && mode === "switch") {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4c669f" />
-        <Text style={styles.loadingText}>Loading your households...</Text>
-      </View>
-    );
-  }
-
-  // Load popular cities initially
-  useEffect(() => {
-    setCities(getPopularCities());
-  }, []);
-
-  useEffect(() => {
-    if (currentHousehold) {
-      router.replace("/(tabs)");
-    }
-  }, [currentHousehold]);
-
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardAvoid}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#4c669f" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            {showCreateForm ? "Create a Household" : "Your Households"}
-          </Text>
-          {households.length > 0 && (
-            <TouchableOpacity
-              style={styles.switchButton}
-              onPress={() => setShowCreateForm(!showCreateForm)}
-            >
-              <Text style={styles.switchButtonText}>
-                {showCreateForm ? "Switch" : "Create"}
-              </Text>
-            </TouchableOpacity>
-          )}
+      {loading && mode === "switch" ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4c669f" />
+          <Text style={styles.loadingText}>Loading your households...</Text>
         </View>
-
-        {showCreateForm ? (
-          // Create Household Form
-          <View style={styles.formContainer}>
-            <Text style={styles.title}>Create a Household</Text>
-            <Text style={styles.subtitle}>
-              Create a new household to get started with TidyRealm
+      ) : (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.keyboardAvoid}
+        >
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="arrow-back" size={24} color="#4c669f" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>
+              {showCreateForm ? "Create a Household" : "Your Households"}
             </Text>
+            {households.length > 0 && (
+              <TouchableOpacity
+                style={styles.switchButton}
+                onPress={() => setShowCreateForm(!showCreateForm)}
+              >
+                <Text style={styles.switchButtonText}>
+                  {showCreateForm ? "Switch" : "Create"}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {showCreateForm ? (
+            // Create Household Form
+            <View style={styles.formContainer}>
+              <Text style={styles.title}>Create a Household</Text>
+              <Text style={styles.subtitle}>
+                Create a new household to get started with TidyRealm
+              </Text>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Household Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter household name"
-                value={householdName}
-                onChangeText={setHouseholdName}
-                autoCapitalize="words"
-              />
-            </View>
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Location</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Search for a city"
-                value={locationQuery}
-                onChangeText={(text) => {
-                  setLocationQuery(text);
-                  setSelectedLocation(null);
-                }}
-                autoCapitalize="words"
-              />
-            </View>
-
-            {searchLoading ? (
-              <ActivityIndicator style={styles.searchLoading} />
-            ) : (
-              <View style={styles.citiesContainer}>
-                <FlatList
-                  data={cities}
-                  keyExtractor={(item) => item.id}
-                  style={styles.citiesList}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      style={[
-                        styles.cityItem,
-                        selectedLocation?.id === item.id &&
-                          styles.selectedCityItem,
-                      ]}
-                      onPress={() => selectCity(item)}
-                    >
-                      <Text style={styles.cityName}>{item.name}</Text>
-                      <Text style={styles.cityCountry}>
-                        {item.state ? `${item.state}, ` : ""}
-                        {item.country}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                  ListEmptyComponent={
-                    <Text style={styles.noResults}>No cities found</Text>
-                  }
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Household Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter household name"
+                  value={householdName}
+                  onChangeText={setHouseholdName}
+                  autoCapitalize="words"
                 />
               </View>
-            )}
 
-            <TouchableOpacity
-              style={[
-                styles.button,
-                (!householdName.trim() || !selectedLocation) &&
-                  styles.buttonDisabled,
-              ]}
-              onPress={handleCreateHousehold}
-              disabled={loading || !householdName.trim() || !selectedLocation}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Create Household</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        ) : (
-          // Switch Household List
-          <View style={styles.switchContainer}>
-            <Text style={styles.title}>Your Households</Text>
-            <Text style={styles.subtitle}>Select a household to switch to</Text>
-
-            {households.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="home" size={64} color="#ccc" />
-                <Text style={styles.emptyText}>No households found</Text>
-                <Text style={styles.emptySubText}>
-                  Create your first household to get started
-                </Text>
-                <TouchableOpacity
-                  style={[styles.button, styles.createButton]}
-                  onPress={() => setShowCreateForm(true)}
-                >
-                  <Text style={styles.buttonText}>Create Household</Text>
-                </TouchableOpacity>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Location</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Search for a city"
+                  value={locationQuery}
+                  onChangeText={(text) => {
+                    setLocationQuery(text);
+                    setSelectedLocation(null);
+                  }}
+                  autoCapitalize="words"
+                />
               </View>
-            ) : (
-              <FlatList
-                data={households}
-                renderItem={renderHouseholdItem}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.householdsList}
-              />
-            )}
-          </View>
-        )}
-      </KeyboardAvoidingView>
+
+              {searchLoading ? (
+                <ActivityIndicator style={styles.searchLoading} />
+              ) : (
+                <View style={styles.citiesContainer}>
+                  <FlatList
+                    data={cities}
+                    keyExtractor={(item) => item.id}
+                    style={styles.citiesList}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={[
+                          styles.cityItem,
+                          selectedLocation?.id === item.id &&
+                            styles.selectedCityItem,
+                        ]}
+                        onPress={() => selectCity(item)}
+                      >
+                        <Text style={styles.cityName}>{item.name}</Text>
+                        <Text style={styles.cityCountry}>
+                          {item.state ? `${item.state}, ` : ""}
+                          {item.country}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    ListEmptyComponent={
+                      <Text style={styles.noResults}>No cities found</Text>
+                    }
+                  />
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  (!householdName.trim() || !selectedLocation) &&
+                    styles.buttonDisabled,
+                ]}
+                onPress={handleCreateHousehold}
+                disabled={loading || !householdName.trim() || !selectedLocation}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Create Household</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            // Switch Household List
+            <View style={styles.switchContainer}>
+              <Text style={styles.title}>Your Households</Text>
+              <Text style={styles.subtitle}>
+                Select a household to switch to
+              </Text>
+
+              {households.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="home" size={64} color="#ccc" />
+                  <Text style={styles.emptyText}>No households found</Text>
+                  <Text style={styles.emptySubText}>
+                    Create your first household to get started
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.button, styles.createButton]}
+                    onPress={() => setShowCreateForm(true)}
+                  >
+                    <Text style={styles.buttonText}>Create Household</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <FlatList
+                  data={households}
+                  renderItem={renderHouseholdItem}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.householdsList}
+                />
+              )}
+            </View>
+          )}
+        </KeyboardAvoidingView>
+      )}
     </SafeAreaView>
   );
 }

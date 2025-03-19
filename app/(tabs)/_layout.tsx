@@ -36,8 +36,13 @@ export default function TabLayout() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const { households, currentHousehold, loading, setCurrentHousehold } =
-    useHouseholdStore();
+  const {
+    households,
+    currentHousehold,
+    loading,
+    setCurrentHousehold,
+    setSwitchHouseholdTrigger,
+  } = useHouseholdStore();
 
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [addTaskModalVisible, setAddTaskModalVisible] = useState(false);
@@ -49,6 +54,7 @@ export default function TabLayout() {
 
   const goToCreateHousehold = () => {
     setHouseholdDropdownVisible(false);
+    setSwitchHouseholdTrigger(true);
     router.push({
       pathname: "/create-household",
       params: { mode: "switch" },
@@ -125,6 +131,7 @@ export default function TabLayout() {
               </View>
               <Ionicons
                 name={householdDropdownVisible ? "chevron-up" : "chevron-down"}
+                style={{ marginTop: 4 }}
                 size={20}
                 color="#666"
               />
@@ -332,7 +339,6 @@ const styles = StyleSheet.create({
   },
   householdButton: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 8,
     paddingHorizontal: 4,
