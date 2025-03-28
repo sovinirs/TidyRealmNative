@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -7,8 +7,16 @@ import {
   TouchableOpacity,
   ScrollView,
   Switch,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useTaskStore } from "@/stores/taskStore";
+import { useHouseholdStore } from "@/stores/householdStore";
+import { useUserStore } from "@/stores/userStore";
+import { TaskPriority, InvolvementType, FrequencyUnit } from "@/types/task";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 
 type Props = {
   onClose: () => void;
@@ -22,27 +30,41 @@ export default function AddTaskContent({ onClose }: Props) {
     React.ComponentProps<typeof Ionicons>["name"]
   >("help-circle-outline"); // Default icon
   const [involvedMembers, setInvolvedMembers] = useState<string[]>([]);
-  const [involvementType, setInvolvementType] = useState<string>("group");
+  const [involvementType, setInvolvementType] =
+    useState<InvolvementType>("assignee");
   const [frequency, setFrequency] = useState("once");
   const [frequencyNumber, setFrequencyNumber] = useState("1");
-  const [frequencyUnit, setFrequencyUnit] = useState("day");
+  const [frequencyUnit, setFrequencyUnit] = useState<FrequencyUnit>("day");
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
+  const [dueDate, setDueDate] = useState(new Date());
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [weekendsOnly, setWeekendsOnly] = useState(false);
   const [requiresApproval, setRequiresApproval] = useState(false);
-  const [priority, setPriority] = useState("medium");
-  const [isRecurring, setIsRecurring] = useState(false);
+  const [priority, setPriority] = useState<TaskPriority>("medium");
+  const [trackIndividualProgress, setTrackIndividualProgress] = useState(false);
 
-  // Mock household members - replace with your actual data source
-  const householdMembers = [
-    { id: "1", name: "John" },
-    { id: "2", name: "Sarah" },
-    { id: "3", name: "Mike" },
-  ];
+  const { createTask, loading, error } = useTaskStore();
+  const {
+    currentHousehold,
+    members,
+    fetchHouseholdMembers,
+    households,
+    setCurrentHousehold,
+  } = useHouseholdStore();
+  const { userProfile } = useUserStore();
+
+  // Fetch household members when component mounts
+  useEffect(() => {
+    if (currentHousehold) {
+      fetchHouseholdMembers(currentHousehold.id);
+    }
+  }, [currentHousehold]);
 
   const involvementTypes = [
-    { id: "1", name: "Group" },
-    { id: "2", name: "Round Robin" },
+    { id: "assignee", name: "Assignee" },
+    { id: "collaborator", name: "Collaborator" },
   ];
 
   // Function to determine icon based on task name
@@ -92,46 +114,72 @@ export default function AddTaskContent({ onClose }: Props) {
     );
   };
 
-  const handleAddTask = () => {
-    // Here you would add the task to your database
-    console.log({
-      taskName,
-      taskIcon,
-      description,
-      duration,
-      priority,
-      isRecurring,
-      involvedMembers,
-      frequency:
-        frequency === "recurring"
-          ? `Every ${frequencyNumber} ${frequencyUnit}(s)`
-          : "Once",
-      startDate,
-      weekendsOnly,
-      requiresApproval,
-    });
+  const handleDateChange = (
+    event: DateTimePickerEvent,
+    selectedDate: Date | undefined,
+    setDate: (date: Date) => void,
+    setShow: (show: boolean) => void
+  ) => {
+    setShow(false);
+    if (selectedDate) {
+      setDate(selectedDate);
+    }
+  };
 
-    // Reset form
-    setTaskName("");
-    setDescription("");
-    setDuration("");
-    setPriority("medium");
-    setIsRecurring(false);
-    setTaskIcon("help-circle-outline");
-    setInvolvedMembers([]);
-    setFrequency("once");
-    setFrequencyNumber("1");
-    setFrequencyUnit("day");
-    setStartDate(new Date());
-    setWeekendsOnly(false);
-    setRequiresApproval(false);
+  const handleAddTask = async () => {
+    if (!currentHousehold || !userProfile) {
+      return;
+    }
 
-    // Close modal
-    onClose();
+    try {
+      await createTask(
+        currentHousehold.id,
+        taskName,
+        description || null,
+        taskIcon,
+        duration ? parseInt(duration) : null,
+        priority,
+        requiresApproval,
+        involvedMembers,
+        involvementType,
+        frequency === "recurring",
+        frequency === "recurring" ? parseInt(frequencyNumber) : undefined,
+        frequency === "recurring" ? frequencyUnit : undefined,
+        frequency === "recurring" ? startDate : undefined,
+        frequency === "recurring" ? endDate : undefined,
+        frequency === "recurring" ? weekendsOnly : undefined,
+        dueDate
+      );
+
+      // Reset form
+      setTaskName("");
+      setDescription("");
+      setDuration("");
+      setPriority("medium");
+      setTaskIcon("help-circle-outline");
+      setInvolvedMembers([]);
+      setInvolvementType("assignee");
+      setFrequency("once");
+      setFrequencyNumber("1");
+      setFrequencyUnit("day");
+      setStartDate(new Date());
+      setEndDate(new Date());
+      setDueDate(new Date());
+      setWeekendsOnly(false);
+      setRequiresApproval(false);
+      setTrackIndividualProgress(false);
+
+      // Close modal
+      onClose();
+    } catch (err) {
+      console.error("Error adding task:", err);
+    }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContent}>
+      {error && <Text style={styles.errorText}>{error}</Text>}
+
       <View style={styles.formGroup}>
         <Text style={styles.label}>Task Details</Text>
         <View style={styles.taskNameContainer}>
@@ -145,20 +193,76 @@ export default function AddTaskContent({ onClose }: Props) {
             placeholder="Enter task name"
           />
         </View>
+
+        <View style={styles.descriptionContainer}>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Enter task description (optional)"
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
+        </View>
+
+        <View style={styles.householdContainer}>
+          <Text style={styles.label}>Household</Text>
+          <View style={styles.dropdownContainer}>
+            {households.map((household) => (
+              <TouchableOpacity
+                key={household.id}
+                style={[
+                  styles.householdItem,
+                  household.id === currentHousehold?.id &&
+                    styles.householdItemActive,
+                ]}
+                onPress={() => {
+                  setCurrentHousehold(household.id);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.householdName,
+                    household.id === currentHousehold?.id && styles.activeText,
+                  ]}
+                >
+                  {household.household_name}
+                </Text>
+                {household.id === currentHousehold?.id && (
+                  <Ionicons name="checkmark" size={18} color="#4c669f" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
       </View>
 
       <View style={styles.formGroup}>
         <Text style={styles.label}>Involves</Text>
         <View style={styles.membersContainer}>
-          {householdMembers.map((member) => (
+          {members.map((member) => (
             <TouchableOpacity
-              key={member.id}
-              style={styles.memberItem}
-              onPress={() => toggleMember(member.id)}
+              key={member.member_id}
+              style={[
+                styles.memberItem,
+                member.member_id === userProfile?.user_id &&
+                  styles.currentUserItem,
+              ]}
+              onPress={() => toggleMember(member.member_id)}
             >
-              <Text style={styles.memberName}>{member.name}</Text>
+              <Text
+                style={[
+                  styles.memberName,
+                  member.member_id === userProfile?.user_id &&
+                    styles.currentUserText,
+                ]}
+              >
+                {member.member?.full_name}
+                {member.member_id === userProfile?.user_id && " (You)"}
+              </Text>
               <View style={styles.checkbox}>
-                {involvedMembers.includes(member.id) && (
+                {involvedMembers.includes(member.member_id) && (
                   <Ionicons name="checkmark" size={18} color="#4c669f" />
                 )}
               </View>
@@ -170,23 +274,33 @@ export default function AddTaskContent({ onClose }: Props) {
       <View style={styles.formGroup}>
         <Text style={styles.label}>Involvement Type</Text>
         <View style={styles.membersContainer}>
-          {involvementTypes.map((involvementTypeElement) => (
+          {involvementTypes.map((type) => (
             <TouchableOpacity
-              key={involvementTypeElement.id}
+              key={type.id}
               style={styles.memberItem}
-              onPress={() => setInvolvementType(involvementTypeElement.id)}
+              onPress={() => setInvolvementType(type.id as InvolvementType)}
             >
-              <Text style={styles.memberName}>
-                {involvementTypeElement.name}
-              </Text>
+              <Text style={styles.memberName}>{type.name}</Text>
               <View style={styles.checkbox}>
-                {involvementTypeElement.id === involvementType && (
+                {type.id === involvementType && (
                   <Ionicons name="checkmark" size={18} color="#4c669f" />
                 )}
               </View>
             </TouchableOpacity>
           ))}
         </View>
+
+        {involvementType === "collaborator" && (
+          <View style={[styles.switchContainer, { marginTop: 12 }]}>
+            <Text style={styles.helperText}>Track Individual Progress</Text>
+            <Switch
+              value={trackIndividualProgress}
+              onValueChange={setTrackIndividualProgress}
+              trackColor={{ false: "#ccc", true: "#4c669f" }}
+              thumbColor="#fff"
+            />
+          </View>
+        )}
       </View>
 
       <View style={styles.formGroup}>
@@ -299,22 +413,58 @@ export default function AddTaskContent({ onClose }: Props) {
         <View style={styles.dateRow}>
           <View style={styles.dateColumn}>
             <Text style={styles.label}>Start Date</Text>
-            <TouchableOpacity style={styles.dateButton}>
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setShowStartDatePicker(true)}
+            >
               <Text style={styles.dateText}>
                 {startDate.toLocaleDateString()}
               </Text>
               <Ionicons name="calendar-outline" size={20} color="#4c669f" />
             </TouchableOpacity>
+            {showStartDatePicker && (
+              <DateTimePicker
+                value={startDate}
+                mode="date"
+                display="default"
+                onChange={(event, date) =>
+                  handleDateChange(
+                    event,
+                    date,
+                    setStartDate,
+                    setShowStartDatePicker
+                  )
+                }
+              />
+            )}
           </View>
 
           <View style={styles.dateColumn}>
             <Text style={styles.label}>End Date</Text>
-            <TouchableOpacity style={styles.dateButton}>
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setShowEndDatePicker(true)}
+            >
               <Text style={styles.dateText}>
                 {endDate.toLocaleDateString()}
               </Text>
               <Ionicons name="calendar-outline" size={20} color="#4c669f" />
             </TouchableOpacity>
+            {showEndDatePicker && (
+              <DateTimePicker
+                value={endDate}
+                mode="date"
+                display="default"
+                onChange={(event, date) =>
+                  handleDateChange(
+                    event,
+                    date,
+                    setEndDate,
+                    setShowEndDatePicker
+                  )
+                }
+              />
+            )}
           </View>
         </View>
 
@@ -349,8 +499,16 @@ export default function AddTaskContent({ onClose }: Props) {
         )}
       </View>
 
-      <TouchableOpacity style={styles.addButton} onPress={handleAddTask}>
-        <Text style={styles.addButtonText}>Add Task</Text>
+      <TouchableOpacity
+        style={[styles.addButton, loading && styles.addButtonDisabled]}
+        onPress={handleAddTask}
+        disabled={loading || !taskName || involvedMembers.length === 0}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.addButtonText}>Add Task</Text>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
@@ -534,5 +692,49 @@ const styles = StyleSheet.create({
   },
   dateColumn: {
     flex: 1,
+  },
+  errorText: {
+    color: "#ff0000",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  addButtonDisabled: {
+    opacity: 0.5,
+  },
+  currentUserItem: {
+    borderColor: "#4c669f",
+    borderWidth: 2,
+  },
+  currentUserText: {
+    color: "#4c669f",
+    fontWeight: "600",
+  },
+  descriptionContainer: {
+    marginTop: 12,
+  },
+  householdContainer: {
+    marginTop: 16,
+  },
+  dropdownContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    overflow: "hidden",
+  },
+  householdItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  householdItemActive: {
+    backgroundColor: "#f0f4ff",
+  },
+  householdName: {
+    fontSize: 16,
+    color: "#333",
   },
 });

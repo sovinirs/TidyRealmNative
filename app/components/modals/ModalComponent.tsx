@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
-    maxHeight: "80%", // Limit the modal height
+    maxHeight: "90%", // Limit the modal height
   },
   modalHeader: {
     flexDirection: "row",

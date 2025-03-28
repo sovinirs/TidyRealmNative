@@ -57,6 +57,10 @@ export default function CreateHouseholdScreen() {
     setCities(getPopularCities());
   }, []);
 
+  // useEffect(() => {
+  //   signOut();
+  // }, []);
+
   useEffect(() => {
     if (!switchHouseholdTrigger && currentHousehold) {
       router.replace("/(tabs)");

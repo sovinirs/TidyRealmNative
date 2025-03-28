@@ -42,3 +42,6 @@ mcp/
 
 # cursor mcp rules
 .cursor/
+
+# sql
+sql/
