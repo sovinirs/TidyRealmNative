@@ -7,7 +7,13 @@ import {
   FrequencyUnit,
   ScheduledTask,
   TaskStatus,
+  TaskCompletionStatus,
+  Task,
 } from "@/types/task";
+
+interface TaskWithScheduled extends Task {
+  scheduled_tasks?: ScheduledTask[];
+}
 
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
@@ -16,93 +22,78 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   error: null,
 
   createTask: async (
-    householdId: string,
-    taskName: string,
-    description: string | null,
-    taskIcon: string,
+    household_id: string,
+    task_name: string,
+    task_description: string | null,
+    task_icon: string,
     duration: number | null,
     priority: TaskPriority,
-    requiresApproval: boolean,
-    involvedMembers: string[],
-    involvementType: InvolvementType,
-    isRecurring: boolean,
-    frequencyNumber?: number,
-    frequencyUnit?: FrequencyUnit,
-    startDate?: Date,
-    endDate?: Date | null,
-    weekendsOnly?: boolean,
-    dueDate?: Date
+    requires_approval: boolean,
+    member_ids: string[],
+    involvement_type: InvolvementType,
+    is_recurring: boolean,
+    due_date: Date,
+    frequency_number?: number,
+    frequency_unit?: FrequencyUnit,
+    start_date?: Date,
+    end_date?: Date,
+    weekends_only?: boolean
   ) => {
     set({ loading: true, error: null });
     try {
-      // 1. Insert the task
+      // Create the task
       const { data: task, error: taskError } = await supabase
         .from("tasks")
-        .insert([
-          {
-            household_id: householdId,
-            task_name: taskName,
-            description,
-            task_icon: taskIcon,
-            duration,
-            priority,
-            requires_approval: requiresApproval,
-            status: "pending" as TaskStatus,
-            due_date: dueDate?.toISOString(),
-            frequency_type: isRecurring ? "recurring" : "once",
-            start_date: startDate?.toISOString() || new Date().toISOString(),
-            end_date: endDate?.toISOString(),
-          },
-        ])
+        .insert({
+          household_id,
+          task_name,
+          task_description,
+          task_icon,
+          duration,
+          priority,
+          track_individual_progress: involvement_type === "collaborator",
+          frequency_type: is_recurring ? "recurring" : "once",
+          start_date: start_date?.toISOString() || due_date.toISOString(),
+          end_date: end_date?.toISOString(),
+          requires_approval,
+          created_by: (await supabase.auth.getUser()).data.user?.id,
+        })
         .select()
         .single();
 
       if (taskError) throw taskError;
 
-      // 2. Create task assignments
+      // Create task assignments using RPC
       const { error: assignmentError } = await supabase.rpc(
         "create_task_assignments",
         {
           p_task_id: task.id,
-          p_member_ids: involvedMembers,
-          p_involvement_type: involvementType,
+          p_member_ids: member_ids,
+          p_involvement_type: involvement_type,
         }
       );
 
       if (assignmentError) throw assignmentError;
 
-      // 3. If recurring, create task recurrence
-      if (isRecurring && frequencyNumber && frequencyUnit && startDate) {
+      // Create task recurrence if recurring
+      if (is_recurring && frequency_number && frequency_unit && start_date) {
         const { error: recurrenceError } = await supabase.rpc(
           "create_task_recurrence",
           {
             p_task_id: task.id,
-            p_frequency_number: frequencyNumber,
-            p_frequency_unit: frequencyUnit,
-            p_start_date: startDate.toISOString(),
-            p_end_date: endDate?.toISOString(),
-            p_weekends_only: weekendsOnly || false,
+            p_frequency_number: frequency_number,
+            p_frequency_unit: frequency_unit,
+            p_start_date: start_date.toISOString(),
+            p_end_date: end_date?.toISOString(),
+            p_weekends_only: weekends_only || false,
           }
         );
 
         if (recurrenceError) throw recurrenceError;
       }
 
-      // 4. Add audit log entry
-      const { error: auditError } = await supabase
-        .from("task_audit_logs")
-        .insert([
-          {
-            task_id: task.id,
-            action: "Task Created",
-            performed_by: task.created_by,
-          },
-        ]);
-
-      if (auditError) throw auditError;
-
-      // 5. Refresh tasks list
-      await get().fetchTasks(householdId);
+      // Refresh tasks list
+      await get().fetchTasks(household_id);
       set({ loading: false });
     } catch (error: any) {
       set({ error: error.message, loading: false });
@@ -112,7 +103,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   fetchTasks: async (householdId: string) => {
     set({ loading: true, error: null });
     try {
-      const { data: tasks, error } = await supabase
+      const { data, error } = await supabase
         .from("tasks")
         .select(
           `
@@ -120,21 +111,20 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           task_assignments (
             id,
             member_id,
-            involvement_type
+            created_at
           ),
           task_recurrence (
             id,
             frequency_number,
             frequency_unit,
-            start_date,
-            end_date,
             weekends_only,
-            next_occurrence
+            created_at
           ),
           scheduled_tasks (
             id,
             scheduled_date,
-            task_status
+            task_status,
+            created_at
           )
         `
         )
@@ -143,9 +133,26 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
       if (error) throw error;
 
-      set({ tasks: tasks || [], loading: false });
-    } catch (error: any) {
-      set({ error: error.message, loading: false });
+      // For each scheduled task, fetch completion status
+      const tasksWithCompletions = await Promise.all(
+        (data || []).map(async (task: TaskWithScheduled) => {
+          if (task.scheduled_tasks) {
+            const scheduledTasksWithCompletions = await Promise.all(
+              task.scheduled_tasks.map(async (st: ScheduledTask) => {
+                const completions = await get().getTaskCompletionStatus(st.id);
+                return { ...st, completions };
+              })
+            );
+            return { ...task, scheduled_tasks: scheduledTasksWithCompletions };
+          }
+          return task;
+        })
+      );
+
+      set({ tasks: tasksWithCompletions as Task[] });
+      set({ loading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, loading: false });
     }
   },
 
@@ -194,30 +201,30 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   updateTaskRecurrence: async (
-    taskId: string,
-    frequencyNumber: number,
-    frequencyUnit: FrequencyUnit,
-    startDate: Date,
-    endDate: Date | null,
-    weekendsOnly: boolean
+    task_id: string,
+    frequency_number: number,
+    frequency_unit: FrequencyUnit,
+    start_date: Date,
+    end_date: Date | null,
+    weekends_only: boolean
   ) => {
     set({ loading: true, error: null });
     try {
       const { error } = await supabase.rpc("create_task_recurrence", {
-        p_task_id: taskId,
-        p_frequency_number: frequencyNumber,
-        p_frequency_unit: frequencyUnit,
-        p_start_date: startDate.toISOString(),
-        p_end_date: endDate?.toISOString(),
-        p_weekends_only: weekendsOnly,
+        p_task_id: task_id,
+        p_frequency_number: frequency_number,
+        p_frequency_unit: frequency_unit,
+        p_start_date: start_date.toISOString(),
+        p_end_date: end_date?.toISOString(),
+        p_weekends_only: weekends_only,
       });
 
       if (error) throw error;
 
-      // Refresh tasks to get updated scheduled tasks
-      const task = get().tasks.find((t) => t.id === taskId);
-      if (task) {
-        await get().fetchTasks(task.household_id);
+      // Refresh tasks to get updated recurrence
+      const currentTasks = get().tasks;
+      if (currentTasks.length > 0) {
+        await get().fetchTasks(currentTasks[0].household_id);
       }
 
       set({ loading: false });
@@ -227,36 +234,24 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   updateTaskAssignments: async (
-    taskId: string,
-    memberIds: string[],
-    involvementType: InvolvementType
+    task_id: string,
+    member_ids: string[],
+    involvement_type: InvolvementType
   ) => {
     set({ loading: true, error: null });
     try {
-      // First delete existing assignments
-      const { error: deleteError } = await supabase
-        .from("task_assignments")
-        .delete()
-        .eq("task_id", taskId);
+      const { error } = await supabase.rpc("create_task_assignments", {
+        p_task_id: task_id,
+        p_member_ids: member_ids,
+        p_involvement_type: involvement_type,
+      });
 
-      if (deleteError) throw deleteError;
+      if (error) throw error;
 
-      // Create new assignments
-      const { error: createError } = await supabase.rpc(
-        "create_task_assignments",
-        {
-          p_task_id: taskId,
-          p_member_ids: memberIds,
-          p_involvement_type: involvementType,
-        }
-      );
-
-      if (createError) throw createError;
-
-      // Refresh tasks
-      const task = get().tasks.find((t) => t.id === taskId);
-      if (task) {
-        await get().fetchTasks(task.household_id);
+      // Refresh tasks to get updated assignments
+      const currentTasks = get().tasks;
+      if (currentTasks.length > 0) {
+        await get().fetchTasks(currentTasks[0].household_id);
       }
 
       set({ loading: false });
@@ -265,40 +260,20 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
-  completeScheduledTask: async (scheduledTaskId: string, userId: string) => {
+  completeScheduledTask: async (scheduled_task_id: string, user_id: string) => {
     set({ loading: true, error: null });
     try {
-      // 1. Update scheduled task
-      const { data: scheduledTask, error: updateError } = await supabase
-        .from("scheduled_tasks")
-        .update({ task_status: "completed" as TaskStatus })
-        .eq("id", scheduledTaskId)
-        .select("task_id")
-        .single();
+      const { data, error } = await supabase.rpc("complete_scheduled_task", {
+        p_scheduled_task_id: scheduled_task_id,
+        p_user_id: user_id,
+      });
 
-      if (updateError) throw updateError;
+      if (error) throw error;
 
-      // 2. Add audit log entry
-      const { error: auditError } = await supabase
-        .from("task_audit_logs")
-        .insert([
-          {
-            task_id: scheduledTask.task_id,
-            action: "Task Completed",
-            performed_by: userId,
-          },
-        ]);
-
-      if (auditError) throw auditError;
-
-      // 3. Refresh the scheduled tasks
-      const task = get().tasks.find((t) => t.id === scheduledTask.task_id);
-      if (task) {
-        await get().fetchScheduledTasks(
-          task.household_id,
-          new Date(),
-          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        );
+      // Refresh tasks to get updated status
+      const currentTasks = get().tasks;
+      if (currentTasks.length > 0) {
+        await get().fetchTasks(currentTasks[0].household_id);
       }
 
       set({ loading: false });
@@ -307,6 +282,22 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
-  setError: (error) => set({ error }),
-  setLoading: (loading) => set({ loading }),
+  getTaskCompletionStatus: async (
+    scheduled_task_id: string
+  ): Promise<TaskCompletionStatus[]> => {
+    try {
+      const { data, error } = await supabase.rpc("get_task_completion_status", {
+        p_scheduled_task_id: scheduled_task_id,
+      });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      set({ error: (error as Error).message });
+      return [];
+    }
+  },
+
+  setError: (error: string | null) => set({ error }),
+  setLoading: (loading: boolean) => set({ loading }),
 }));
