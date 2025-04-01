@@ -136,6 +136,10 @@ export const useUserStore = create<UserState>((set, get) => ({
   setLoading: (loading: boolean) => {
     set({ loading });
   },
+
+  pageLoadReset: () => {
+    set({ error: null, loading: false });
+  },
 }));
 
 const handleError = (

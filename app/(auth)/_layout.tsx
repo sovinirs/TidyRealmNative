@@ -27,6 +27,17 @@ export default function AuthLayout() {
             headerTitleAlign: "center",
           }}
         />
+        <Stack.Screen
+          name="forgotpassword"
+          options={{
+            title: "Forgot Password",
+            headerShown: false,
+            headerTitleStyle: {
+              fontWeight: "600",
+            },
+            headerTitleAlign: "center",
+          }}
+        />
       </Stack>
     </SafeAreaProvider>
   );

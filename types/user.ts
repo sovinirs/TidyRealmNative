@@ -11,6 +11,7 @@ export interface UserState {
   createProfileForLoggedInUser: () => Promise<void>;
   setError: (error: string) => void;
   setLoading: (loading: boolean) => void;
+  pageLoadReset: () => void;
 }
 
 export interface User {

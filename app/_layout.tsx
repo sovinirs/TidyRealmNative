@@ -66,11 +66,6 @@ export default function RootLayout() {
           options={{ headerShown: false }}
           redirect={!session}
         />
-        <Stack.Screen
-          name="create-household"
-          options={{ headerShown: false }}
-          redirect={!session}
-        />
       </Stack>
     </SafeAreaProvider>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -18,10 +18,12 @@ import { useUserStore } from "@/stores/userStore";
 
 export default function SignupScreen() {
   const router = useRouter();
-  const { error, loading, setError, setLoading, signUp } = useUserStore();
+  const { error, loading, setError, setLoading, pageLoadReset, signUp } =
+    useUserStore();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -55,166 +57,141 @@ export default function SignupScreen() {
     setLoading(false);
   };
 
+  useEffect(() => {
+    pageLoadReset();
+  }, []);
+
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardAvoid}
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.appName}>Quotidy</Text>
+      <Text style={styles.signupLabel}>Sign-Up</Text>
+
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+      <Text style={styles.label}>Name</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Enter your name"
+        value={name}
+        onChangeText={setName}
+      />
+
+      <Text style={styles.label}>Email</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="you@example.com"
+        keyboardType="email-address"
+        value={email}
+        onChangeText={setEmail}
+      />
+
+      <Text style={styles.label}>Phone Number</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="+1 (555) 555-5555"
+        keyboardType="phone-pad"
+        value={phone}
+        onChangeText={setPhone}
+      />
+
+      <Text style={styles.label}>Password</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="●●●●●●●"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
+
+      <Text style={styles.label}>Confirm Password</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="●●●●●●●"
+        secureTextEntry
+        value={confirmPassword}
+        onChangeText={setConfirmPassword}
+      />
+
+      <TouchableOpacity style={styles.button} onPress={handleSignup}>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Sign Up →</Text>
+        )}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.loginLink}
+        onPress={() => router.push("/signin")}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.formContainer}>
-            <Text style={styles.title}>Join TidyRealm</Text>
-            <Text style={styles.subtitle}>
-              Create an account to get started
-            </Text>
-
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Full Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your name"
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your email"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Create a password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Confirm Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Confirm your password"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.button}
-              onPress={handleSignup}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Create Account</Text>
-              )}
-            </TouchableOpacity>
-
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Already have an account? </Text>
-              <Link href="/(auth)/signin" asChild>
-                <TouchableOpacity>
-                  <Text style={styles.linkText}>Sign In</Text>
-                </TouchableOpacity>
-              </Link>
-            </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        <Text style={styles.loginText}>
+          Already have an account? <Text style={styles.link}>Log In</Text>
+        </Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  keyboardAvoid: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-  },
-  formContainer: {
     padding: 24,
+    backgroundColor: "#FAFAFA",
+    justifyContent: "center",
+    flexGrow: 1,
   },
-  title: {
-    fontSize: 28,
+  appName: {
+    fontSize: 32,
     fontWeight: "bold",
-    marginBottom: 8,
+    color: "#5D5FEF",
     textAlign: "center",
+    marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 32,
+  signupLabel: {
+    fontSize: 18,
+    color: "#888888",
     textAlign: "center",
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: 14,
+    color: "#555555",
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#DDDDDD",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: "#FFFFFF",
+  },
+  button: {
+    backgroundColor: "#5D5FEF",
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  buttonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  loginLink: {
+    marginTop: 16,
+    alignItems: "center",
+  },
+  loginText: {
+    color: "#888888",
+  },
+  link: {
+    color: "#5D5FEF",
+    fontWeight: "bold",
   },
   errorText: {
     color: "#ff3b30",
     marginBottom: 16,
     textAlign: "center",
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    marginBottom: 8,
-    fontWeight: "500",
-  },
-  input: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: "#ddd",
-  },
-  button: {
-    backgroundColor: "#4c669f",
-    borderRadius: 8,
-    padding: 16,
-    alignItems: "center",
-    marginTop: 16,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 24,
-  },
-  footerText: {
-    fontSize: 16,
-    color: "#666",
-  },
-  linkText: {
-    fontSize: 16,
-    color: "#4c669f",
-    fontWeight: "600",
   },
 });

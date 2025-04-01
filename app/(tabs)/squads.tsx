@@ -11,15 +11,15 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import CustomModal from "../components/modals/ModalComponent";
-import AddMemberContent from "../components/modals/AddMember";
+import CustomModal from "../../components/modals/ModalComponent";
+import AddMemberContent from "../../components/modals/AddMember";
 
 import { useHouseholdStore } from "@/stores/householdStore";
 import { useUserStore } from "@/stores/userStore";
 
 import { HouseholdMember } from "@/types/household";
 
-export default function HouseholdScreen() {
+export default function SquadsScreen() {
   const {
     members,
     currentHousehold,
