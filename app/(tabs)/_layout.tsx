@@ -1,29 +1,29 @@
 import React, { useState } from "react";
-import { Tabs, useRouter, usePathname } from "expo-router";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  FlatList,
-  Animated,
-} from "react-native";
+import { Tabs, useRouter, useSegments } from "expo-router";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CustomModal from "../../components/modals/ModalComponent";
 import ProfileContent from "../../components/modals/ProfileContent";
 import AddTaskContent from "../../components/modals/AddTask";
 
-const getPageName = (pathname: string): string => {
-  const pageName = pathname.split("/").pop();
-  return pageName
-    ? pageName.charAt(0).toUpperCase() + pageName.slice(1)
-    : "Home";
+const getPageName = (segments: string[]): string => {
+  const pageName = segments.find(
+    (segment) => segment && !segment.includes("tabs")
+  );
+
+  switch (pageName) {
+    case "(squads)":
+      return "Squads";
+    case "activity":
+      return "Activity";
+    default:
+      return "Home";
+  }
 };
 
 export default function TabLayout() {
-  const pathname = usePathname();
+  const segments = useSegments();
 
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [addTaskModalVisible, setAddTaskModalVisible] = useState(false);
@@ -35,7 +35,7 @@ export default function TabLayout() {
       <View style={styles.header}>
         <View>
           <TouchableOpacity style={styles.pageButton}>
-            <Text style={styles.pageText}>{getPageName(pathname)}</Text>
+            <Text style={styles.pageText}>{getPageName(segments)}</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.headerRight}>
@@ -63,7 +63,7 @@ export default function TabLayout() {
         initialRouteName="index"
       >
         <Tabs.Screen
-          name="squads"
+          name="(squads)"
           options={{
             headerShown: false,
             tabBarIcon: ({ color, size }) => (
@@ -78,7 +78,7 @@ export default function TabLayout() {
             headerShown: false,
             tabBarIcon: () => (
               <View style={styles.addButton}>
-                {pathname === "/" ? (
+                {segments.join("/") === "(tabs)" ? (
                   <TouchableOpacity
                     onPress={() => setAddTaskModalVisible(true)}
                   >

@@ -87,7 +87,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       const { data: userProfile, error } = await supabase
         .from("user_profiles")
         .select(
-          "user_id, full_name, user_email, created_at, avatar_url, last_active"
+          "user_id, full_name, user_email, created_at, avatar_url, last_active, phone"
         )
         .eq("user_id", userId)
         .single();
@@ -146,6 +146,7 @@ const handleError = (
   error: unknown,
   set: (state: { error: string; loading: boolean }) => void
 ) => {
+  console.log(error);
   if (error instanceof Error) {
     set({ error: error.message, loading: false });
   } else {

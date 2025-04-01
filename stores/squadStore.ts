@@ -1,21 +1,21 @@
 import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
-import { HouseholdCreate, HouseholdState, MemberRole } from "@/types/household";
+import { SquadCreate, SquadState } from "@/types/squads";
 
-export const useHouseholdStore = create<HouseholdState>((set, get) => ({
-  households: [],
-  currentHousehold: null,
-  switchHouseholdTrigger: false,
+export const useSquadStore = create<SquadState>((set, get) => ({
+  squads: [],
+  currentSquad: null,
+  switchSquadTrigger: false,
   members: [],
   loading: false,
   error: null,
 
-  createHousehold: async (household: HouseholdCreate, userId: string) => {
+  createSquad: async (squad: SquadCreate, userId: string) => {
     set({ loading: true });
     try {
       const { data, error } = await supabase.rpc(
-        "create_household_with_owner",
-        household
+        "create_squad_with_owner",
+        squad
       );
 
       if (error) throw error;
@@ -24,62 +24,49 @@ export const useHouseholdStore = create<HouseholdState>((set, get) => ({
         loading: false,
       });
 
-      get().fetchUserHouseholds(userId, data.id);
-      get().setSwitchHouseholdTrigger(false);
+      get().fetchUserSquads(userId, data.id);
     } catch (error) {
-      console.error("Error creating household:", error);
+      console.error("Error creating squad:", error);
       handleError(error, set);
     }
   },
 
-  fetchUserHouseholds: async (userId: string, currentHouseholdId?: string) => {
+  fetchUserSquads: async (userId: string, currentSquadId?: string) => {
     set({ loading: true });
     try {
-      const { data: households, error } = await supabase
-        .from("households")
+      const { data: squads, error } = await supabase
+        .from("squads")
         .select(
           `
         *,
-        household_members!inner (
+        squad_members!inner (
           id,
           member_id,
-          role,
+          member_type,
           status,
           joined_at
         )
       `
         )
-        .eq("household_members.member_id", userId)
-        .in("household_members.status", ["active", "invited"]);
+        .eq("squad_members.member_id", userId)
+        .in("squad_members.status", ["active", "invited"]);
 
       if (error) throw error;
 
       set({
-        households,
+        squads,
         loading: false,
       });
-
-      if (households.length > 0) {
-        get().setCurrentHousehold(currentHouseholdId || households[0].id);
-      }
     } catch (error) {
       handleError(error, set);
     }
   },
 
-  setCurrentHousehold: (householdId: string) => {
-    const { households } = get();
-    const currentHousehold = households.find(
-      (household) => household.id === householdId
-    );
-    set({ currentHousehold });
-  },
-
-  fetchHouseholdMembers: async (householdId: string) => {
+  fetchSquadMembers: async (squadId: string) => {
     set({ loading: true });
     try {
       const { data, error } = await supabase
-        .from("household_members")
+        .from("squad_members")
         .select(
           `
           *,
@@ -95,7 +82,7 @@ export const useHouseholdStore = create<HouseholdState>((set, get) => ({
           )
         `
         )
-        .eq("household_id", householdId);
+        .eq("squad_id", squadId);
 
       if (error) throw error;
       set({ members: data || [], loading: false });
@@ -104,12 +91,7 @@ export const useHouseholdStore = create<HouseholdState>((set, get) => ({
     }
   },
 
-  addMember: async (
-    householdId: string,
-    email: string,
-    role: MemberRole,
-    inviterId: string
-  ) => {
+  addMember: async (squadId: string, email: string, inviterId: string) => {
     set({ loading: true });
     try {
       const { data, error } = await supabase.rpc("find_user_by_email", {
@@ -119,18 +101,17 @@ export const useHouseholdStore = create<HouseholdState>((set, get) => ({
 
       if (data && data.length > 0) {
         const userId = data[0].user_id;
-        await supabase.from("household_members").insert([
+        await supabase.from("squad_members").insert([
           {
-            household_id: householdId,
+            squad_id: squadId,
             member_id: userId,
-            role,
             status: "active",
             invited_by: inviterId,
           },
         ]);
 
         // Refresh members list
-        await get().fetchHouseholdMembers(householdId);
+        await get().fetchSquadMembers(squadId);
         set({ loading: false });
       } else {
         set({ error: "User not found", loading: false });
@@ -140,55 +121,51 @@ export const useHouseholdStore = create<HouseholdState>((set, get) => ({
     }
   },
 
-  removeMemberFromHousehold: async (householdId: string, memberId: string) => {
+  removeMemberFromSquad: async (squadId: string, memberId: string) => {
     set({ loading: true });
     try {
       // Check if member is the only person
       const { data: members, error: membersError } = await supabase
-        .from("household_members")
+        .from("squad_members")
         .select("id")
-        .eq("household_id", householdId)
+        .eq("squad_id", squadId)
         .eq("status", "active");
 
       if (membersError) throw membersError;
 
-      // Update member and household status based on member count
+      // Update member and squad status based on member count
       const { error: updateError } = await supabase
-        .from("household_members")
+        .from("squad_members")
         .update({ status: "left" })
-        .eq("household_id", householdId)
+        .eq("squad_id", squadId)
         .eq("member_id", memberId);
 
       if (updateError) throw updateError;
 
       if (members.length === 1) {
-        const { error: householdError } = await supabase
-          .from("households")
+        const { error: squadError } = await supabase
+          .from("squads")
           .update({ status: "archived" })
-          .eq("id", householdId);
+          .eq("id", squadId);
 
-        if (householdError) throw householdError;
+        if (squadError) throw squadError;
       }
 
       // Refresh members list
-      await get().fetchHouseholdMembers(householdId);
+      await get().fetchSquadMembers(squadId);
 
-      // Update current household
-      const { households } = get();
-      if (households.length > 0) {
-        await get().fetchUserHouseholds(memberId, households[0].id);
+      // Update current squad
+      const { squads } = get();
+      if (squads.length > 0) {
+        await get().fetchUserSquads(memberId, squads[0].id);
       } else {
-        set({ currentHousehold: null });
+        set({ currentSquad: null });
       }
 
       set({ loading: false });
     } catch (error) {
       handleError(error, set);
     }
-  },
-
-  setSwitchHouseholdTrigger: (trigger: boolean) => {
-    set({ switchHouseholdTrigger: trigger });
   },
 
   setLoading: (loading: boolean) => {
@@ -204,6 +181,8 @@ const handleError = (
   error: unknown,
   set: (state: { error: string; loading: boolean }) => void
 ) => {
+  console.log(error);
+
   if (error instanceof Error) {
     set({ error: error.message, loading: false });
   } else {

@@ -8,12 +8,12 @@ import { ActivityIndicator, View } from "react-native";
 // Stores
 import { useSessionStore } from "@/stores/sessionStore";
 import { useUserStore } from "@/stores/userStore";
-import { useHouseholdStore } from "@/stores/householdStore";
+import { useSquadStore } from "@/stores/squadStore";
 
 export default function RootLayout() {
   const { session, loading, fetchSession, setSession } = useSessionStore();
   const { userProfile, getUserProfile } = useUserStore();
-  const { fetchUserHouseholds } = useHouseholdStore();
+  const { fetchUserSquads } = useSquadStore();
 
   useEffect(() => {
     fetchSession();
@@ -37,7 +37,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (userProfile) {
-      fetchUserHouseholds(userProfile.user_id);
+      fetchUserSquads(userProfile.user_id);
     }
   }, [userProfile]);
 

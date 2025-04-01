@@ -22,7 +22,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   error: null,
 
   createTask: async (
-    household_id: string,
+    squad_id: string,
     task_name: string,
     task_description: string | null,
     task_icon: string,
@@ -45,7 +45,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       const { data: task, error: taskError } = await supabase
         .from("tasks")
         .insert({
-          household_id,
+          squad_id,
           task_name,
           task_description,
           task_icon,
@@ -93,14 +93,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       }
 
       // Refresh tasks list
-      await get().fetchTasks(household_id);
+      await get().fetchTasks(squad_id);
       set({ loading: false });
     } catch (error: any) {
       set({ error: error.message, loading: false });
     }
   },
 
-  fetchTasks: async (householdId: string) => {
+  fetchTasks: async (squadId: string) => {
     set({ loading: true, error: null });
     try {
       const { data, error } = await supabase
@@ -128,7 +128,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           )
         `
         )
-        .eq("household_id", householdId)
+        .eq("squad_id", squadId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -157,7 +157,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   fetchScheduledTasks: async (
-    householdId: string,
+    squadId: string,
     startDate: Date,
     endDate: Date
   ) => {
@@ -187,7 +187,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           )
         `
         )
-        .eq("task.household_id", householdId)
+        .eq("task.squad_id", squadId)
         .gte("scheduled_date", startDate.toISOString())
         .lte("scheduled_date", endDate.toISOString())
         .order("scheduled_date", { ascending: true });
@@ -224,7 +224,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       // Refresh tasks to get updated recurrence
       const currentTasks = get().tasks;
       if (currentTasks.length > 0) {
-        await get().fetchTasks(currentTasks[0].household_id);
+        await get().fetchTasks(currentTasks[0].squad_id);
       }
 
       set({ loading: false });
@@ -251,7 +251,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       // Refresh tasks to get updated assignments
       const currentTasks = get().tasks;
       if (currentTasks.length > 0) {
-        await get().fetchTasks(currentTasks[0].household_id);
+        await get().fetchTasks(currentTasks[0].squad_id);
       }
 
       set({ loading: false });
@@ -273,7 +273,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       // Refresh tasks to get updated status
       const currentTasks = get().tasks;
       if (currentTasks.length > 0) {
-        await get().fetchTasks(currentTasks[0].household_id);
+        await get().fetchTasks(currentTasks[0].squad_id);
       }
 
       set({ loading: false });

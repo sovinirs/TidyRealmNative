@@ -23,7 +23,7 @@ export interface Task {
   task_icon: string;
   task_name: string;
   task_description: string | null;
-  household_id: string;
+  squad_id: string;
   involvement_type: InvolvementType;
   track_individual_progress: boolean;
   frequency_type: FrequencyType;
@@ -79,7 +79,7 @@ export interface TaskState {
   loading: boolean;
   error: string | null;
   createTask: (
-    household_id: string,
+    squad_id: string,
     task_name: string,
     task_description: string | null,
     task_icon: string,
@@ -96,9 +96,9 @@ export interface TaskState {
     end_date?: Date,
     weekends_only?: boolean
   ) => Promise<void>;
-  fetchTasks: (householdId: string) => Promise<void>;
+  fetchTasks: (squadId: string) => Promise<void>;
   fetchScheduledTasks: (
-    householdId: string,
+    squadId: string,
     startDate: Date,
     endDate: Date
   ) => Promise<void>;

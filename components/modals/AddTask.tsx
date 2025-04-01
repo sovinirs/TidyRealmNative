@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTaskStore } from "@/stores/taskStore";
-import { useHouseholdStore } from "@/stores/householdStore";
+import { useSquadStore } from "@/stores/squadStore";
 import { useUserStore } from "@/stores/userStore";
 import { TaskPriority, InvolvementType, FrequencyUnit } from "@/types/task";
 import DateTimePicker, {
@@ -46,21 +46,14 @@ export default function AddTaskContent({ onClose }: Props) {
   const [trackIndividualProgress, setTrackIndividualProgress] = useState(false);
 
   const { createTask, loading, error } = useTaskStore();
-  const {
-    currentHousehold,
-    members,
-    fetchHouseholdMembers,
-    households,
-    setCurrentHousehold,
-  } = useHouseholdStore();
+  const { currentSquad, members, fetchSquadMembers } = useSquadStore();
   const { userProfile } = useUserStore();
 
-  // Fetch household members when component mounts
   useEffect(() => {
-    if (currentHousehold) {
-      fetchHouseholdMembers(currentHousehold.id);
+    if (currentSquad) {
+      fetchSquadMembers(currentSquad.id);
     }
-  }, [currentHousehold]);
+  }, [currentSquad]);
 
   const involvementTypes = [
     { id: "assignee", name: "Assignee" },
@@ -126,54 +119,8 @@ export default function AddTaskContent({ onClose }: Props) {
     }
   };
 
-  const handleAddTask = async () => {
-    if (!currentHousehold || !userProfile) {
-      return;
-    }
-
-    try {
-      await createTask(
-        currentHousehold.id,
-        taskName,
-        description || null,
-        taskIcon,
-        duration ? parseInt(duration) : null,
-        priority,
-        requiresApproval,
-        involvedMembers,
-        involvementType,
-        frequency === "recurring",
-        dueDate,
-        frequency === "recurring" ? parseInt(frequencyNumber) : undefined,
-        frequency === "recurring" ? frequencyUnit : undefined,
-        frequency === "recurring" ? startDate : undefined,
-        frequency === "recurring" ? endDate : undefined,
-        frequency === "recurring" ? weekendsOnly : undefined
-      );
-
-      // Reset form
-      setTaskName("");
-      setDescription("");
-      setDuration("");
-      setPriority("medium");
-      setTaskIcon("help-circle-outline");
-      setInvolvedMembers([]);
-      setInvolvementType("assignee");
-      setFrequency("once");
-      setFrequencyNumber("1");
-      setFrequencyUnit("day");
-      setStartDate(new Date());
-      setEndDate(new Date());
-      setDueDate(new Date());
-      setWeekendsOnly(false);
-      setRequiresApproval(false);
-      setTrackIndividualProgress(false);
-
-      // Close modal
-      onClose();
-    } catch (err) {
-      console.error("Error adding task:", err);
-    }
+  const handleAddTask = () => {
+    console.log("handleAddTask");
   };
 
   return (
@@ -209,38 +156,6 @@ export default function AddTaskContent({ onClose }: Props) {
               numberOfLines={4}
               textAlignVertical="top"
             />
-          </View>
-
-          <View style={styles.householdContainer}>
-            <Text style={styles.label}>Household</Text>
-            <View style={styles.dropdownContainer}>
-              {households.map((household) => (
-                <TouchableOpacity
-                  key={household.id}
-                  style={[
-                    styles.householdItem,
-                    household.id === currentHousehold?.id &&
-                      styles.householdItemActive,
-                  ]}
-                  onPress={() => {
-                    setCurrentHousehold(household.id);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.householdName,
-                      household.id === currentHousehold?.id &&
-                        styles.activeText,
-                    ]}
-                  >
-                    {household.household_name}
-                  </Text>
-                  {household.id === currentHousehold?.id && (
-                    <Ionicons name="checkmark" size={18} color="#4c669f" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
           </View>
         </View>
 
@@ -734,29 +649,11 @@ const styles = StyleSheet.create({
   descriptionContainer: {
     marginTop: 12,
   },
-  householdContainer: {
-    marginTop: 16,
-  },
   dropdownContainer: {
     backgroundColor: "#fff",
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#e0e0e0",
     overflow: "hidden",
-  },
-  householdItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-  },
-  householdItemActive: {
-    backgroundColor: "#f0f4ff",
-  },
-  householdName: {
-    fontSize: 16,
-    color: "#333",
   },
 });
