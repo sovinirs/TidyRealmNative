@@ -1,260 +1,351 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
-  StyleSheet,
   View,
   Text,
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Switch,
-  ActivityIndicator,
+  SafeAreaView,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  Modal,
+  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useTaskStore } from "@/stores/taskStore";
-import { useSquadStore } from "@/stores/squadStore";
-import { useUserStore } from "@/stores/userStore";
-import { TaskPriority, InvolvementType, FrequencyUnit } from "@/types/task";
-import DateTimePicker, {
-  DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
 
-type Props = {
-  onClose: () => void;
-};
+// Mock data
+const SQUADS = ["Squad #1", "Squad #2", "Squad #3"];
+const SQUAD_MEMBERS = [
+  "Member #1",
+  "Member #2",
+  "Member #3",
+  "Member #4",
+  "Member #5",
+];
 
-export default function AddTaskContent({ onClose }: Props) {
+// Type definitions
+interface DropdownProps {
+  open: boolean;
+  options: string[];
+  value: string;
+  onSelect: (option: string) => void;
+  onToggle: () => void;
+  placeholder?: string;
+}
+
+interface MultiselectDropdownProps {
+  options: string[];
+  selectedValues: string[];
+  onToggleItem: (item: string) => void;
+  open: boolean;
+  onToggle: () => void;
+}
+
+export default function AddTaskScreen() {
   const [taskName, setTaskName] = useState("");
   const [description, setDescription] = useState("");
-  const [duration, setDuration] = useState("");
-  const [taskIcon, setTaskIcon] = useState<
-    React.ComponentProps<typeof Ionicons>["name"]
-  >("help-circle-outline"); // Default icon
-  const [involvedMembers, setInvolvedMembers] = useState<string[]>([]);
-  const [involvementType, setInvolvementType] =
-    useState<InvolvementType>("assignee");
-  const [frequency, setFrequency] = useState("once");
-  const [frequencyNumber, setFrequencyNumber] = useState("1");
-  const [frequencyUnit, setFrequencyUnit] = useState<FrequencyUnit>("day");
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
-  const [dueDate, setDueDate] = useState(new Date());
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  const [weekendsOnly, setWeekendsOnly] = useState(false);
-  const [requiresApproval, setRequiresApproval] = useState(false);
-  const [priority, setPriority] = useState<TaskPriority>("medium");
-  const [trackIndividualProgress, setTrackIndividualProgress] = useState(false);
+  const [frequencyNumber, setFrequencyNumber] = useState("2");
+  const [selectedSquad, setSelectedSquad] = useState(SQUADS[0]);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [involvementType, setInvolvementType] = useState("Assignee");
+  const [individualProgress, setIndividualProgress] = useState("Yes");
+  const [frequency, setFrequency] = useState("Once");
+  const [requiresApproval, setRequiresApproval] = useState("Yes");
 
-  const { createTask, loading, error } = useTaskStore();
-  const { currentSquad, members, fetchSquadMembers } = useSquadStore();
-  const { userProfile } = useUserStore();
+  // Dropdown states
+  const [squadDropdownOpen, setSquadDropdownOpen] = useState(false);
+  const [membersDropdownOpen, setMembersDropdownOpen] = useState(false);
+  const [progressDropdownOpen, setProgressDropdownOpen] = useState(false);
+  const [approvalDropdownOpen, setApprovalDropdownOpen] = useState(false);
 
-  useEffect(() => {
-    if (currentSquad) {
-      fetchSquadMembers(currentSquad.id);
-    }
-  }, [currentSquad]);
-
-  const involvementTypes = [
-    { id: "assignee", name: "Assignee" },
-    { id: "collaborator", name: "Collaborator" },
-  ];
-
-  // Function to determine icon based on task name
-  const determineTaskIcon = (
-    name: string
-  ): React.ComponentProps<typeof Ionicons>["name"] => {
-    const nameLower = name.toLowerCase();
-    if (nameLower.includes("clean") || nameLower.includes("wash"))
-      return "water-outline";
-    if (nameLower.includes("cook") || nameLower.includes("food"))
-      return "restaurant-outline";
-    if (nameLower.includes("shop") || nameLower.includes("buy"))
-      return "cart-outline";
-    if (nameLower.includes("fix") || nameLower.includes("repair"))
-      return "build-outline";
-    return "checkmark-circle-outline";
-  };
-
-  // Update icon when task name changes
-  React.useEffect(() => {
-    if (taskName) {
-      setTaskIcon(determineTaskIcon(taskName));
-    }
-  }, [taskName]);
-
-  // Check if date is weekend
-  const isWeekend = (date: Date) => {
-    const day = date.getDay();
-    return day === 0 || day === 6; // 0 is Sunday, 6 is Saturday
-  };
-
-  // Show weekend option if frequency > monthly and start date is weekend
-  const shouldShowWeekendOption = () => {
-    return (
-      frequencyUnit === "month" &&
-      parseInt(frequencyNumber) >= 1 &&
-      isWeekend(startDate)
-    );
-  };
-
-  // Toggle member selection
-  const toggleMember = (memberId: string) => {
-    setInvolvedMembers((prev) =>
-      prev.includes(memberId)
-        ? prev.filter((id) => id !== memberId)
-        : [...prev, memberId]
-    );
-  };
-
-  const handleDateChange = (
-    event: DateTimePickerEvent,
-    selectedDate: Date | undefined,
-    setDate: (date: Date) => void,
-    setShow: (show: boolean) => void
-  ) => {
-    setShow(false);
-    if (selectedDate) {
-      setDate(selectedDate);
+  const toggleMemberSelection = (member: string) => {
+    if (selectedMembers.includes(member)) {
+      setSelectedMembers(selectedMembers.filter((m) => m !== member));
+    } else {
+      setSelectedMembers([...selectedMembers, member]);
     }
   };
 
-  const handleAddTask = () => {
-    console.log("handleAddTask");
+  const incrementFrequency = () => {
+    const num = parseInt(frequencyNumber, 10) || 0;
+    setFrequencyNumber((num + 1).toString());
   };
+
+  const decrementFrequency = () => {
+    const num = parseInt(frequencyNumber, 10) || 0;
+    if (num > 1) {
+      setFrequencyNumber((num - 1).toString());
+    }
+  };
+
+  // Dropdown component
+  const Dropdown = ({
+    open,
+    options,
+    value,
+    onSelect,
+    onToggle,
+    placeholder,
+  }: DropdownProps) => (
+    <View style={styles.dropdownContainer}>
+      <TouchableOpacity style={styles.input} onPress={onToggle}>
+        <View style={styles.dropdownField}>
+          <Text>{value || placeholder}</Text>
+          <Ionicons
+            name={open ? "chevron-up" : "chevron-down"}
+            size={16}
+            color="#666"
+          />
+        </View>
+      </TouchableOpacity>
+
+      {open && (
+        <View style={styles.dropdownMenu}>
+          {options.map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={styles.dropdownItem}
+              onPress={() => {
+                onSelect(option);
+                onToggle();
+              }}
+            >
+              <Text style={value === option ? styles.selectedOption : null}>
+                {option}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+
+  // Multiselect Dropdown component
+  const MultiselectDropdown = ({
+    options,
+    selectedValues,
+    onToggleItem,
+    open,
+    onToggle,
+  }: MultiselectDropdownProps) => (
+    <View style={styles.dropdownContainer}>
+      <TouchableOpacity style={styles.input} onPress={onToggle}>
+        <View style={styles.dropdownField}>
+          {selectedValues.length > 0 ? (
+            <Text numberOfLines={1} ellipsizeMode="tail">
+              {selectedValues.join(", ")}
+            </Text>
+          ) : (
+            <Text style={styles.placeholderText}>Select members</Text>
+          )}
+          <Ionicons
+            name={open ? "chevron-up" : "chevron-down"}
+            size={16}
+            color="#666"
+          />
+        </View>
+      </TouchableOpacity>
+
+      {open && (
+        <View style={styles.dropdownMenu}>
+          {options.map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={styles.dropdownItem}
+              onPress={() => onToggleItem(option)}
+            >
+              <View style={styles.checkboxRow}>
+                <View style={styles.checkbox}>
+                  {selectedValues.includes(option) && (
+                    <Ionicons name="checkmark" size={16} color="#5D5FEF" />
+                  )}
+                </View>
+                <Text>{option}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
+  );
 
   return (
-    <ScrollView
-      style={styles.scrollView}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-    >
-      {error && <Text style={styles.errorText}>{error}</Text>}
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <Text style={styles.title}>Add Task</Text>
 
-      <View style={styles.formContainer}>
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Task Details</Text>
-          <View style={styles.taskNameContainer}>
-            <View style={styles.iconContainer}>
-              <Ionicons name={taskIcon} size={24} color="#4c669f" />
-            </View>
+          {/* Task Name & Icon */}
+          <View style={styles.row}>
+            <View style={styles.iconBox} />
             <TextInput
-              style={styles.taskNameInput}
+              style={[styles.input, { flex: 1 }]}
+              placeholder="Task Name"
               value={taskName}
               onChangeText={setTaskName}
-              placeholder="Enter task name"
             />
           </View>
 
-          <View style={styles.descriptionContainer}>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Enter task description (optional)"
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          </View>
-        </View>
+          <Text style={styles.label}>Task Description</Text>
+          <TextInput
+            style={[styles.input, { height: 100 }]}
+            placeholder="Enter description..."
+            multiline
+            value={description}
+            onChangeText={setDescription}
+          />
 
-        <View style={styles.formGroup}>
+          <Text style={styles.label}>Squad</Text>
+          <Dropdown
+            open={squadDropdownOpen}
+            options={SQUADS}
+            value={selectedSquad}
+            onSelect={setSelectedSquad}
+            onToggle={() => setSquadDropdownOpen(!squadDropdownOpen)}
+            placeholder="Select a squad"
+          />
+
           <Text style={styles.label}>Involves</Text>
-          <View style={styles.membersContainer}>
-            {members.map((member) => (
-              <TouchableOpacity
-                key={member.member_id}
-                style={[
-                  styles.memberItem,
-                  member.member_id === userProfile?.user_id &&
-                    styles.currentUserItem,
-                ]}
-                onPress={() => toggleMember(member.member_id)}
-              >
-                <Text
-                  style={[
-                    styles.memberName,
-                    member.member_id === userProfile?.user_id &&
-                      styles.currentUserText,
-                  ]}
+          <MultiselectDropdown
+            options={SQUAD_MEMBERS}
+            selectedValues={selectedMembers}
+            onToggleItem={toggleMemberSelection}
+            open={membersDropdownOpen}
+            onToggle={() => setMembersDropdownOpen(!membersDropdownOpen)}
+          />
+
+          {selectedMembers.length > 0 && (
+            <View style={styles.tagRow}>
+              {selectedMembers.map((member) => (
+                <TouchableOpacity
+                  key={member}
+                  style={styles.tag}
+                  onPress={() => toggleMemberSelection(member)}
                 >
-                  {member.member?.full_name}
-                  {member.member_id === userProfile?.user_id && " (You)"}
-                </Text>
-                <View style={styles.checkbox}>
-                  {involvedMembers.includes(member.member_id) && (
-                    <Ionicons name="checkmark" size={18} color="#4c669f" />
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Involvement Type</Text>
-          <View style={styles.membersContainer}>
-            {involvementTypes.map((type) => (
-              <TouchableOpacity
-                key={type.id}
-                style={styles.memberItem}
-                onPress={() => setInvolvementType(type.id as InvolvementType)}
-              >
-                <Text style={styles.memberName}>{type.name}</Text>
-                <View style={styles.checkbox}>
-                  {type.id === involvementType && (
-                    <Ionicons name="checkmark" size={18} color="#4c669f" />
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {involvementType === "collaborator" && (
-            <View style={[styles.switchContainer, { marginTop: 12 }]}>
-              <Text style={styles.helperText}>Track Individual Progress</Text>
-              <Switch
-                value={trackIndividualProgress}
-                onValueChange={setTrackIndividualProgress}
-                trackColor={{ false: "#ccc", true: "#4c669f" }}
-                thumbColor="#fff"
-              />
+                  <Text>{member}</Text>
+                  <Ionicons
+                    name="close-circle"
+                    size={16}
+                    color="#666"
+                    style={styles.tagIcon}
+                  />
+                </TouchableOpacity>
+              ))}
             </View>
           )}
-        </View>
 
-        <View style={styles.formGroup}>
+          <Text style={styles.label}>Watchers</Text>
+          <MultiselectDropdown
+            options={SQUAD_MEMBERS}
+            selectedValues={selectedMembers}
+            onToggleItem={toggleMemberSelection}
+            open={membersDropdownOpen}
+            onToggle={() => setMembersDropdownOpen(!membersDropdownOpen)}
+          />
+
+          {selectedMembers.length > 0 && (
+            <View style={styles.tagRow}>
+              {selectedMembers.map((member) => (
+                <TouchableOpacity
+                  key={member}
+                  style={styles.tag}
+                  onPress={() => toggleMemberSelection(member)}
+                >
+                  <Text>{member}</Text>
+                  <Ionicons
+                    name="close-circle"
+                    size={16}
+                    color="#666"
+                    style={styles.tagIcon}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          <View style={styles.rowBetween}>
+            <View>
+              <Text style={styles.label}>Involvement Type</Text>
+              <View style={styles.row}>
+                <TouchableOpacity
+                  style={[
+                    styles.radioButton,
+                    involvementType === "Assignee" &&
+                      styles.radioButtonSelected,
+                  ]}
+                  onPress={() => setInvolvementType("Assignee")}
+                >
+                  <View style={styles.radioCircle}>
+                    {involvementType === "Assignee" && (
+                      <View style={styles.radioChecked} />
+                    )}
+                  </View>
+                  <Text>Assignee</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.radioButton,
+                    involvementType === "Collab" && styles.radioButtonSelected,
+                  ]}
+                  onPress={() => setInvolvementType("Collab")}
+                >
+                  <View style={styles.radioCircle}>
+                    {involvementType === "Collab" && (
+                      <View style={styles.radioChecked} />
+                    )}
+                  </View>
+                  <Text>Collab</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View>
+              <Text style={styles.label}>Individual Progress</Text>
+              <Dropdown
+                open={progressDropdownOpen}
+                options={["Yes", "No"]}
+                value={individualProgress}
+                onSelect={setIndividualProgress}
+                onToggle={() => setProgressDropdownOpen(!progressDropdownOpen)}
+                placeholder="Select"
+              />
+            </View>
+          </View>
+
           <Text style={styles.label}>Frequency</Text>
-          <View style={styles.frequencyContainer}>
+          <View style={styles.row}>
             <TouchableOpacity
               style={[
                 styles.frequencyButton,
-                frequency === "once" && styles.frequencyButtonActive,
+                frequency === "Once" && styles.frequencyButtonSelected,
               ]}
-              onPress={() => setFrequency("once")}
+              onPress={() => setFrequency("Once")}
             >
               <Text
                 style={
-                  frequency === "once" ? styles.activeText : styles.inactiveText
+                  frequency === "Once"
+                    ? styles.frequencyTextSelected
+                    : styles.frequencyText
                 }
               >
                 Once
               </Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={[
                 styles.frequencyButton,
-                frequency === "recurring" && styles.frequencyButtonActive,
+                frequency === "Recurring" && styles.frequencyButtonSelected,
               ]}
-              onPress={() => setFrequency("recurring")}
+              onPress={() => setFrequency("Recurring")}
             >
               <Text
                 style={
-                  frequency === "recurring"
-                    ? styles.activeText
-                    : styles.inactiveText
+                  frequency === "Recurring"
+                    ? styles.frequencyTextSelected
+                    : styles.frequencyText
                 }
               >
                 Recurring
@@ -262,398 +353,246 @@ export default function AddTaskContent({ onClose }: Props) {
             </TouchableOpacity>
           </View>
 
-          {frequency === "recurring" && (
-            <View style={styles.recurringOptions}>
-              <Text style={styles.recurringText}>Every</Text>
+          {frequency === "Recurring" && (
+            <View style={[styles.row, { marginVertical: 10 }]}>
+              <Text style={[styles.label, styles.frequencyField]}>Every</Text>
+              <TouchableOpacity
+                style={[styles.counterBtn, styles.frequencyField]}
+                onPress={decrementFrequency}
+              >
+                <Text>-</Text>
+              </TouchableOpacity>
               <TextInput
-                style={styles.numberInput}
+                style={[
+                  styles.input,
+                  styles.frequencyField,
+                  { textAlign: "center" },
+                ]}
                 value={frequencyNumber}
                 onChangeText={setFrequencyNumber}
-                keyboardType="numeric"
+                keyboardType="number-pad"
               />
-              <View style={styles.unitSelector}>
-                <TouchableOpacity
-                  style={[
-                    styles.unitButton,
-                    frequencyUnit === "day" && styles.unitButtonActive,
-                  ]}
-                  onPress={() => setFrequencyUnit("day")}
-                >
-                  <Text
-                    style={
-                      frequencyUnit === "day"
-                        ? styles.activeText
-                        : styles.inactiveText
-                    }
-                  >
-                    Day
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.unitButton,
-                    frequencyUnit === "week" && styles.unitButtonActive,
-                  ]}
-                  onPress={() => setFrequencyUnit("week")}
-                >
-                  <Text
-                    style={
-                      frequencyUnit === "week"
-                        ? styles.activeText
-                        : styles.inactiveText
-                    }
-                  >
-                    Week
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.unitButton,
-                    frequencyUnit === "month" && styles.unitButtonActive,
-                  ]}
-                  onPress={() => setFrequencyUnit("month")}
-                >
-                  <Text
-                    style={
-                      frequencyUnit === "month"
-                        ? styles.activeText
-                        : styles.inactiveText
-                    }
-                  >
-                    Month
-                  </Text>
-                </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.counterBtn, styles.frequencyField]}
+                onPress={incrementFrequency}
+              >
+                <Text>+</Text>
+              </TouchableOpacity>
+              <View style={[styles.input, styles.frequencyField]}>
+                <Text>Days</Text>
               </View>
             </View>
           )}
-        </View>
 
-        <View style={styles.formGroup}>
-          <View style={styles.dateRow}>
-            <View style={styles.dateColumn}>
+          <View style={styles.rowBetween}>
+            <View style={{ flex: 1, marginRight: 8 }}>
               <Text style={styles.label}>Start Date</Text>
-              <TouchableOpacity
-                style={styles.dateButton}
-                onPress={() => setShowStartDatePicker(true)}
-              >
-                <Text style={styles.dateText}>
-                  {startDate.toLocaleDateString()}
-                </Text>
-                <Ionicons name="calendar-outline" size={20} color="#4c669f" />
-              </TouchableOpacity>
-              {showStartDatePicker && (
-                <DateTimePicker
-                  value={startDate}
-                  mode="date"
-                  display="default"
-                  onChange={(event, date) =>
-                    handleDateChange(
-                      event,
-                      date,
-                      setStartDate,
-                      setShowStartDatePicker
-                    )
-                  }
-                />
-              )}
+              <TextInput style={styles.input} placeholder="MM/DD/YYYY" />
             </View>
-
-            <View style={styles.dateColumn}>
-              <Text style={styles.label}>End Date</Text>
-              <TouchableOpacity
-                style={styles.dateButton}
-                onPress={() => setShowEndDatePicker(true)}
-              >
-                <Text style={styles.dateText}>
-                  {endDate.toLocaleDateString()}
-                </Text>
-                <Ionicons name="calendar-outline" size={20} color="#4c669f" />
-              </TouchableOpacity>
-              {showEndDatePicker && (
-                <DateTimePicker
-                  value={endDate}
-                  mode="date"
-                  display="default"
-                  onChange={(event, date) =>
-                    handleDateChange(
-                      event,
-                      date,
-                      setEndDate,
-                      setShowEndDatePicker
-                    )
-                  }
-                />
-              )}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>End Date (optional)</Text>
+              <TextInput style={styles.input} placeholder="MM/DD/YYYY" />
             </View>
           </View>
 
-          {shouldShowWeekendOption() && (
-            <View style={styles.weekendOption}>
-              <Text style={styles.weekendText}>Repeat only on weekends?</Text>
-              <Switch
-                value={weekendsOnly}
-                onValueChange={setWeekendsOnly}
-                trackColor={{ false: "#ccc", true: "#4c669f" }}
-                thumbColor="#fff"
-              />
-            </View>
-          )}
-        </View>
+          <Text style={styles.label}>Requires Approval</Text>
+          <Dropdown
+            open={approvalDropdownOpen}
+            options={["Yes", "No"]}
+            value={requiresApproval}
+            onSelect={setRequiresApproval}
+            onToggle={() => setApprovalDropdownOpen(!approvalDropdownOpen)}
+            placeholder="Select"
+          />
+        </ScrollView>
 
-        <View style={styles.formGroup}>
-          <View style={styles.switchContainer}>
-            <Text style={styles.label}>Requires Approval</Text>
-            <Switch
-              value={requiresApproval}
-              onValueChange={setRequiresApproval}
-              trackColor={{ false: "#ccc", true: "#4c669f" }}
-              thumbColor="#fff"
-            />
-          </View>
-          {requiresApproval && (
-            <Text style={styles.helperText}>
-              Task completion and changes will require approval from involved
-              members
-            </Text>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.submitButtonContainer}>
-        <TouchableOpacity
-          style={[styles.addButton, loading && styles.addButtonDisabled]}
-          onPress={handleAddTask}
-          disabled={loading || !taskName || involvedMembers.length === 0}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
+        {/* Sticky Add Task Button */}
+        <View style={styles.footer}>
+          <TouchableOpacity style={styles.addButton}>
             <Text style={styles.addButtonText}>Add Task</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  formContainer: {
-    padding: 16,
-  },
-  submitButtonContainer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#eaeaea",
-    backgroundColor: "#fff",
-  },
-  formGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 8,
-    color: "#333",
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
+  scrollContainer: { padding: 16, paddingBottom: 120 },
+  title: { fontSize: 28, fontWeight: "bold", marginBottom: 16 },
+  label: { marginVertical: 8, fontSize: 16, fontWeight: "500" },
   input: {
-    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ccc",
     borderRadius: 8,
     padding: 12,
+    backgroundColor: "#f9f9f9",
+    marginBottom: 8,
+  },
+  iconBox: {
+    width: 40,
+    height: 40,
     borderWidth: 1,
-    borderColor: "#e0e0e0",
-    fontSize: 16,
+    borderColor: "#ccc",
+    borderRadius: 6,
+    marginRight: 10,
   },
-  textArea: {
-    height: 100,
-    textAlignVertical: "top",
-  },
-  priorityContainer: {
+  row: { flexDirection: "row", alignItems: "center" },
+  rowBetween: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
   },
-  priorityButton: {
+  tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginVertical: 6 },
+  tag: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: "#aaa",
+    borderRadius: 20,
+    backgroundColor: "#f2f2f2",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    padding: 10,
+  },
+  tagIcon: {
+    marginLeft: 4,
+  },
+  radioButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  radioButtonSelected: {
+    borderColor: "#5D5FEF",
+    backgroundColor: "#EEF0FF",
+  },
+  radioCircle: {
+    height: 16,
+    width: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: "#5D5FEF",
+    marginRight: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  radioChecked: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#5D5FEF",
+  },
+  frequencyButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginRight: 4,
+  },
+  frequencyButtonSelected: {
+    borderColor: "#5D5FEF",
+    backgroundColor: "#EEF0FF",
+  },
+  frequencyText: {
+    color: "#333",
+  },
+  frequencyTextSelected: {
+    color: "#5D5FEF",
+    fontWeight: "500",
+  },
+  frequencyField: {
     flex: 1,
     marginHorizontal: 4,
   },
-  priorityButtonActive: {
-    borderWidth: 2,
-  },
-  priorityText: {
-    marginLeft: 4,
-    fontWeight: "500",
-  },
-  switchContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  counterBtn: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  footer: {
+    position: "absolute",
+    bottom: 0,
+    width: "100%",
+    padding: 16,
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderColor: "#eaeaea",
   },
   addButton: {
-    backgroundColor: "#4c669f",
-    borderRadius: 8,
+    backgroundColor: "#5D5FEF",
     padding: 16,
+    borderRadius: 8,
     alignItems: "center",
-    marginTop: 10,
   },
   addButtonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "bold",
   },
-  taskNameContainer: {
+  dropdownContainer: {
+    position: "relative",
+    zIndex: 1,
+  },
+  dropdownField: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
   },
-  iconContainer: {
-    marginRight: 8,
-  },
-  taskNameInput: {
-    flex: 1,
-  },
-  membersContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  memberItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 8,
+  dropdownMenu: {
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    right: 0,
+    backgroundColor: "white",
     borderWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: "#ccc",
     borderRadius: 8,
-    margin: 4,
+    marginTop: -4,
+    maxHeight: 200,
+    zIndex: 10,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  memberName: {
-    marginRight: 8,
+  dropdownItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  selectedOption: {
+    fontWeight: "bold",
+    color: "#5D5FEF",
+  },
+  placeholderText: {
+    color: "#999",
+  },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   checkbox: {
     width: 20,
     height: 20,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
     borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    marginRight: 8,
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
-  },
-  frequencyContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  frequencyButton: {
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderRadius: 8,
-    flex: 1,
-    marginHorizontal: 4,
-  },
-  frequencyButtonActive: {
-    borderWidth: 2,
-  },
-  recurringOptions: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  recurringText: {
-    marginRight: 8,
-  },
-  numberInput: {
-    flex: 1,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderRadius: 8,
-  },
-  unitSelector: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  unitButton: {
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderRadius: 8,
-    marginHorizontal: 4,
-  },
-  unitButtonActive: {
-    borderWidth: 2,
-  },
-  activeText: {
-    fontWeight: "600",
-  },
-  inactiveText: {
-    color: "#999",
-  },
-  dateButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderRadius: 8,
-  },
-  dateText: {
-    marginRight: 8,
-  },
-  weekendOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  weekendText: {
-    marginRight: 8,
-  },
-  helperText: {
-    color: "#999",
-    marginTop: 8,
-  },
-  dateRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  dateColumn: {
-    flex: 1,
-  },
-  errorText: {
-    color: "#ff0000",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  addButtonDisabled: {
-    opacity: 0.5,
-  },
-  currentUserItem: {
-    borderColor: "#4c669f",
-    borderWidth: 2,
-  },
-  currentUserText: {
-    color: "#4c669f",
-    fontWeight: "600",
-  },
-  descriptionContainer: {
-    marginTop: 12,
-  },
-  dropdownContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    overflow: "hidden",
   },
 });
