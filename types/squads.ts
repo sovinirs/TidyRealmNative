@@ -34,6 +34,7 @@ export interface Squad {
   description?: string;
   squad_image_url?: string;
   updated_at?: string;
+  squad_members: SquadMember[];
 }
 
 export interface SquadMember {

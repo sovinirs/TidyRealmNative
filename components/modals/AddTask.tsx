@@ -9,10 +9,10 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Modal,
-  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Dropdown from "../forms/Dropdown";
+import MultiselectDropdown from "../forms/MultiselectDropdown";
 
 // Mock data
 const SQUADS = ["Squad #1", "Squad #2", "Squad #3"];
@@ -22,25 +22,20 @@ const SQUAD_MEMBERS = [
   "Member #3",
   "Member #4",
   "Member #5",
+  "Member #6",
+  "Member #7",
+  "Member #8",
+  "Member #9",
+  "Member #10",
+  "Member #11",
+  "Member #12",
+  "Member #13",
+  "Member #14",
+  "Member #15",
+  "Member #16",
+  "Member #17",
 ];
-
-// Type definitions
-interface DropdownProps {
-  open: boolean;
-  options: string[];
-  value: string;
-  onSelect: (option: string) => void;
-  onToggle: () => void;
-  placeholder?: string;
-}
-
-interface MultiselectDropdownProps {
-  options: string[];
-  selectedValues: string[];
-  onToggleItem: (item: string) => void;
-  open: boolean;
-  onToggle: () => void;
-}
+const FREQUENCY_UNITS = ["Days", "Weeks", "Months", "Years"];
 
 export default function AddTaskScreen() {
   const [taskName, setTaskName] = useState("");
@@ -49,15 +44,16 @@ export default function AddTaskScreen() {
   const [selectedSquad, setSelectedSquad] = useState(SQUADS[0]);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [involvementType, setInvolvementType] = useState("Assignee");
-  const [individualProgress, setIndividualProgress] = useState("Yes");
   const [frequency, setFrequency] = useState("Once");
+  const [frequencyUnit, setFrequencyUnit] = useState("Days");
   const [requiresApproval, setRequiresApproval] = useState("Yes");
 
   // Dropdown states
   const [squadDropdownOpen, setSquadDropdownOpen] = useState(false);
   const [membersDropdownOpen, setMembersDropdownOpen] = useState(false);
-  const [progressDropdownOpen, setProgressDropdownOpen] = useState(false);
   const [approvalDropdownOpen, setApprovalDropdownOpen] = useState(false);
+  const [frequencyUnitDropdownOpen, setFrequencyUnitDropdownOpen] =
+    useState(false);
 
   const toggleMemberSelection = (member: string) => {
     if (selectedMembers.includes(member)) {
@@ -78,97 +74,6 @@ export default function AddTaskScreen() {
       setFrequencyNumber((num - 1).toString());
     }
   };
-
-  // Dropdown component
-  const Dropdown = ({
-    open,
-    options,
-    value,
-    onSelect,
-    onToggle,
-    placeholder,
-  }: DropdownProps) => (
-    <View style={styles.dropdownContainer}>
-      <TouchableOpacity style={styles.input} onPress={onToggle}>
-        <View style={styles.dropdownField}>
-          <Text>{value || placeholder}</Text>
-          <Ionicons
-            name={open ? "chevron-up" : "chevron-down"}
-            size={16}
-            color="#666"
-          />
-        </View>
-      </TouchableOpacity>
-
-      {open && (
-        <View style={styles.dropdownMenu}>
-          {options.map((option) => (
-            <TouchableOpacity
-              key={option}
-              style={styles.dropdownItem}
-              onPress={() => {
-                onSelect(option);
-                onToggle();
-              }}
-            >
-              <Text style={value === option ? styles.selectedOption : null}>
-                {option}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-
-  // Multiselect Dropdown component
-  const MultiselectDropdown = ({
-    options,
-    selectedValues,
-    onToggleItem,
-    open,
-    onToggle,
-  }: MultiselectDropdownProps) => (
-    <View style={styles.dropdownContainer}>
-      <TouchableOpacity style={styles.input} onPress={onToggle}>
-        <View style={styles.dropdownField}>
-          {selectedValues.length > 0 ? (
-            <Text numberOfLines={1} ellipsizeMode="tail">
-              {selectedValues.join(", ")}
-            </Text>
-          ) : (
-            <Text style={styles.placeholderText}>Select members</Text>
-          )}
-          <Ionicons
-            name={open ? "chevron-up" : "chevron-down"}
-            size={16}
-            color="#666"
-          />
-        </View>
-      </TouchableOpacity>
-
-      {open && (
-        <View style={styles.dropdownMenu}>
-          {options.map((option) => (
-            <TouchableOpacity
-              key={option}
-              style={styles.dropdownItem}
-              onPress={() => onToggleItem(option)}
-            >
-              <View style={styles.checkboxRow}>
-                <View style={styles.checkbox}>
-                  {selectedValues.includes(option) && (
-                    <Ionicons name="checkmark" size={16} color="#5D5FEF" />
-                  )}
-                </View>
-                <Text>{option}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -218,101 +123,43 @@ export default function AddTaskScreen() {
             onToggle={() => setMembersDropdownOpen(!membersDropdownOpen)}
           />
 
-          {selectedMembers.length > 0 && (
-            <View style={styles.tagRow}>
-              {selectedMembers.map((member) => (
-                <TouchableOpacity
-                  key={member}
-                  style={styles.tag}
-                  onPress={() => toggleMemberSelection(member)}
-                >
-                  <Text>{member}</Text>
-                  <Ionicons
-                    name="close-circle"
-                    size={16}
-                    color="#666"
-                    style={styles.tagIcon}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          <Text style={styles.label}>Watchers</Text>
-          <MultiselectDropdown
-            options={SQUAD_MEMBERS}
-            selectedValues={selectedMembers}
-            onToggleItem={toggleMemberSelection}
-            open={membersDropdownOpen}
-            onToggle={() => setMembersDropdownOpen(!membersDropdownOpen)}
-          />
-
-          {selectedMembers.length > 0 && (
-            <View style={styles.tagRow}>
-              {selectedMembers.map((member) => (
-                <TouchableOpacity
-                  key={member}
-                  style={styles.tag}
-                  onPress={() => toggleMemberSelection(member)}
-                >
-                  <Text>{member}</Text>
-                  <Ionicons
-                    name="close-circle"
-                    size={16}
-                    color="#666"
-                    style={styles.tagIcon}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          <View style={styles.rowBetween}>
-            <View>
-              <Text style={styles.label}>Involvement Type</Text>
-              <View style={styles.row}>
-                <TouchableOpacity
-                  style={[
-                    styles.radioButton,
-                    involvementType === "Assignee" &&
-                      styles.radioButtonSelected,
-                  ]}
-                  onPress={() => setInvolvementType("Assignee")}
-                >
-                  <View style={styles.radioCircle}>
-                    {involvementType === "Assignee" && (
-                      <View style={styles.radioChecked} />
-                    )}
-                  </View>
-                  <Text>Assignee</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.radioButton,
-                    involvementType === "Collab" && styles.radioButtonSelected,
-                  ]}
-                  onPress={() => setInvolvementType("Collab")}
-                >
-                  <View style={styles.radioCircle}>
-                    {involvementType === "Collab" && (
-                      <View style={styles.radioChecked} />
-                    )}
-                  </View>
-                  <Text>Collab</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <View>
-              <Text style={styles.label}>Individual Progress</Text>
-              <Dropdown
-                open={progressDropdownOpen}
-                options={["Yes", "No"]}
-                value={individualProgress}
-                onSelect={setIndividualProgress}
-                onToggle={() => setProgressDropdownOpen(!progressDropdownOpen)}
-                placeholder="Select"
-              />
-            </View>
+          <Text style={styles.label}>Involvement Type</Text>
+          <View style={styles.row}>
+            <TouchableOpacity
+              style={[
+                styles.frequencyButton,
+                involvementType === "Assignee" &&
+                  styles.frequencyButtonSelected,
+              ]}
+              onPress={() => setInvolvementType("Assignee")}
+            >
+              <Text
+                style={
+                  involvementType === "Assignee"
+                    ? styles.frequencyTextSelected
+                    : styles.frequencyText
+                }
+              >
+                Assignee
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.frequencyButton,
+                involvementType === "Collab" && styles.frequencyButtonSelected,
+              ]}
+              onPress={() => setInvolvementType("Collab")}
+            >
+              <Text
+                style={
+                  involvementType === "Collab"
+                    ? styles.frequencyTextSelected
+                    : styles.frequencyText
+                }
+              >
+                Collab
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.label}>Frequency</Text>
@@ -354,7 +201,7 @@ export default function AddTaskScreen() {
           </View>
 
           {frequency === "Recurring" && (
-            <View style={[styles.row, { marginVertical: 10 }]}>
+            <View style={[styles.row, { marginVertical: 12 }]}>
               <Text style={[styles.label, styles.frequencyField]}>Every</Text>
               <TouchableOpacity
                 style={[styles.counterBtn, styles.frequencyField]}
@@ -364,7 +211,7 @@ export default function AddTaskScreen() {
               </TouchableOpacity>
               <TextInput
                 style={[
-                  styles.input,
+                  styles.frequencyInput,
                   styles.frequencyField,
                   { textAlign: "center" },
                 ]}
@@ -378,9 +225,29 @@ export default function AddTaskScreen() {
               >
                 <Text>+</Text>
               </TouchableOpacity>
-              <View style={[styles.input, styles.frequencyField]}>
-                <Text>Days</Text>
-              </View>
+              <Dropdown
+                open={frequencyUnitDropdownOpen}
+                options={FREQUENCY_UNITS}
+                value={frequencyUnit}
+                onSelect={setFrequencyUnit}
+                onToggle={() =>
+                  setFrequencyUnitDropdownOpen(!frequencyUnitDropdownOpen)
+                }
+                customStyles={{
+                  dropdownContainer: {
+                    position: "relative",
+                    width: 100,
+                  },
+                  input: {
+                    borderWidth: 1,
+                    borderColor: "#ccc",
+                    borderRadius: 8,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    backgroundColor: "#f9f9f9",
+                  },
+                }}
+              />
             </View>
           )}
 
@@ -395,7 +262,7 @@ export default function AddTaskScreen() {
             </View>
           </View>
 
-          <Text style={styles.label}>Requires Approval</Text>
+          <Text style={styles.label}>Requires Approval for Completion</Text>
           <Dropdown
             open={approvalDropdownOpen}
             options={["Yes", "No"]}
@@ -430,13 +297,22 @@ const styles = StyleSheet.create({
     backgroundColor: "#f9f9f9",
     marginBottom: 8,
   },
+  frequencyInput: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#f9f9f9",
+  },
   iconBox: {
-    width: 40,
-    height: 40,
+    width: 45,
+    height: 45,
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 6,
     marginRight: 10,
+    marginBottom: 8,
   },
   row: { flexDirection: "row", alignItems: "center" },
   rowBetween: {
@@ -544,7 +420,6 @@ const styles = StyleSheet.create({
   },
   dropdownContainer: {
     position: "relative",
-    zIndex: 1,
   },
   dropdownField: {
     flexDirection: "row",
@@ -560,9 +435,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 8,
-    marginTop: -4,
     maxHeight: 200,
-    zIndex: 10,
     elevation: 5,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
