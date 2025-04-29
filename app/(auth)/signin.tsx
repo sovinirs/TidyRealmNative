@@ -48,6 +48,7 @@ export default function SigninScreen() {
       const functionBlockUserProfile = await getUserProfile(user.id);
 
       // If user doesn't exist in user_profiles, create a profile
+      // Which means the user is logging in for the first time
       if (!functionBlockUserProfile) {
         await createProfileForLoggedInUser();
       }

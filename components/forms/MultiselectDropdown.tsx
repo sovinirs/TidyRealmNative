@@ -3,9 +3,9 @@ import { TouchableOpacity, View, Text, ScrollView } from "react-native";
 import styles from "./styles";
 
 interface MultiselectDropdownProps {
-  options: string[];
-  selectedValues: string[];
-  onToggleItem: (item: string) => void;
+  options: { label: string; value: string }[];
+  selectedValues: { label: string; value: string }[];
+  onToggleItem: (item: { label: string; value: string }) => void;
   open: boolean;
   onToggle: () => void;
   customStyles?: any;
@@ -39,11 +39,11 @@ export default function MultiselectDropdown({
             <View style={styles.tagRow}>
               {selectedValues.map((member) => (
                 <TouchableOpacity
-                  key={member}
+                  key={member.value}
                   style={styles.tag}
                   onPress={() => onToggleItem(member)}
                 >
-                  <Text>{member}</Text>
+                  <Text>{member.label}</Text>
                   <Ionicons
                     name="close-circle"
                     size={16}
@@ -68,17 +68,17 @@ export default function MultiselectDropdown({
         <ScrollView style={styles.dropdownMenu}>
           {options.map((option) => (
             <TouchableOpacity
-              key={option}
+              key={option.value}
               style={styles.dropdownItem}
               onPress={() => onToggleItem(option)}
             >
               <View style={styles.checkboxRow}>
                 <View style={styles.checkbox}>
-                  {selectedValues.includes(option) && (
+                  {selectedValues.some((m) => m.value === option.value) && (
                     <Ionicons name="checkmark" size={16} color="#5D5FEF" />
                   )}
                 </View>
-                <Text>{option}</Text>
+                <Text>{option.label}</Text>
               </View>
             </TouchableOpacity>
           ))}

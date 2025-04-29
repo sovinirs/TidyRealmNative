@@ -11,8 +11,8 @@ import styles from "./styles";
 
 interface DropdownProps {
   open: boolean;
-  options: string[];
-  value: string;
+  options: { label: string; value: string }[] | string[];
+  value: string | undefined;
   onSelect: (option: string) => void;
   onToggle: () => void;
   placeholder?: string;
@@ -56,15 +56,21 @@ export default function Dropdown({
         <ScrollView style={styles.dropdownMenu}>
           {options.map((option) => (
             <TouchableOpacity
-              key={option}
+              key={typeof option === "string" ? option : option.value}
               style={styles.dropdownItem}
               onPress={() => {
-                onSelect(option);
+                onSelect(typeof option === "string" ? option : option.value);
                 onToggle();
               }}
             >
-              <Text style={value === option ? styles.selectedOption : null}>
-                {option}
+              <Text
+                style={
+                  value === (typeof option === "string" ? option : option.value)
+                    ? styles.selectedOption
+                    : null
+                }
+              >
+                {typeof option === "string" ? option : option.label}
               </Text>
             </TouchableOpacity>
           ))}

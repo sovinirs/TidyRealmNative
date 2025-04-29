@@ -44,7 +44,13 @@ export const useSquadStore = create<SquadState>((set, get) => ({
           member_id,
           member_type,
           status,
-          joined_at
+          joined_at,
+          member:member_id(
+            user_id,
+            full_name,
+            user_email,
+            avatar_url
+          )
         )
       `
         )
