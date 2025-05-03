@@ -188,46 +188,6 @@ export default function AddTaskScreen({ onClose }: AddTaskProps) {
             onToggle={() => setMembersDropdownOpen(!membersDropdownOpen)}
           />
 
-          <Text style={styles.label}>Involvement Type</Text>
-          <View style={styles.row}>
-            <TouchableOpacity
-              style={[
-                styles.frequencyButton,
-                involvementType === "assignee" &&
-                  styles.frequencyButtonSelected,
-              ]}
-              onPress={() => setInvolvementType("assignee")}
-            >
-              <Text
-                style={
-                  involvementType === "assignee"
-                    ? styles.frequencyTextSelected
-                    : styles.frequencyText
-                }
-              >
-                Assignee
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.frequencyButton,
-                involvementType === "collaborator" &&
-                  styles.frequencyButtonSelected,
-              ]}
-              onPress={() => setInvolvementType("collaborator")}
-            >
-              <Text
-                style={
-                  involvementType === "collaborator"
-                    ? styles.frequencyTextSelected
-                    : styles.frequencyText
-                }
-              >
-                Collaborator
-              </Text>
-            </TouchableOpacity>
-          </View>
-
           <Text style={styles.label}>Frequency</Text>
           <View style={styles.row}>
             <TouchableOpacity
@@ -265,6 +225,50 @@ export default function AddTaskScreen({ onClose }: AddTaskProps) {
               </Text>
             </TouchableOpacity>
           </View>
+
+          {frequencyType === "recurring" && selectedMembers.length > 1 && (
+            <>
+              <Text style={styles.label}>Involvement Type</Text>
+              <View style={styles.row}>
+                <TouchableOpacity
+                  style={[
+                    styles.frequencyButton,
+                    involvementType === "assignee" &&
+                      styles.frequencyButtonSelected,
+                  ]}
+                  onPress={() => setInvolvementType("assignee")}
+                >
+                  <Text
+                    style={
+                      involvementType === "assignee"
+                        ? styles.frequencyTextSelected
+                        : styles.frequencyText
+                    }
+                  >
+                    Assignee
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.frequencyButton,
+                    involvementType === "collaborator" &&
+                      styles.frequencyButtonSelected,
+                  ]}
+                  onPress={() => setInvolvementType("collaborator")}
+                >
+                  <Text
+                    style={
+                      involvementType === "collaborator"
+                        ? styles.frequencyTextSelected
+                        : styles.frequencyText
+                    }
+                  >
+                    Collaborator
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
 
           {frequencyType === "recurring" && (
             <View style={[styles.row, { marginVertical: 12 }]}>

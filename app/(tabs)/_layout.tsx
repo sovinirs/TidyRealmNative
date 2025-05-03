@@ -39,14 +39,6 @@ export default function TabLayout() {
           </TouchableOpacity>
         </View>
         <View style={styles.headerRight}>
-          <View style={styles.streakContainer}>
-            <TouchableOpacity
-              onPress={() => console.log("streak button clicked")}
-            >
-              <Ionicons name="flame" size={24} color="#5D5FEF" />
-            </TouchableOpacity>
-            <Text style={styles.streakText}>{streak}</Text>
-          </View>
           <TouchableOpacity onPress={() => setProfileModalVisible(true)}>
             <Ionicons name="person-circle-outline" size={48} color="#5D5FEF" />
           </TouchableOpacity>

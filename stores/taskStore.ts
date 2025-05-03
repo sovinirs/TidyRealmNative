@@ -70,6 +70,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           });
 
         if (recurrenceError) throw recurrenceError;
+
+        // Add logic for generate recurring task
       } else {
         // Create scheduled tasks for one-time task
         const { error: scheduledTaskError } = await supabase
