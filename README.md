@@ -60,11 +60,9 @@ Stay motivated through streaks, shared progress, and simple, clean task manageme
 .
 ├── assets/              # App images, icons, fonts
 ├── components/          # Reusable UI components
-├── hooks/               # Custom React hooks
-├── screens/             # App screen components
-├── store/               # Zustand state management
-├── utils/               # Utility functions
-├── App.tsx              # Entry point
+├── stores/              # Zustand state management
+├── lib/                 # Utility functions
+├── app/                 # Entry point
 └── README.md
 ```
 ---
