@@ -1,50 +1,104 @@
-# Welcome to your Expo app 👋
+# Quotidy - Group Accountability App 🚀
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**Chores, Tasks, Habits – Delightfully Organized.**  
+Quotidy is a collaborative accountability app that helps households, friends, and teams track tasks, habits, and chores together.  
+Stay motivated through streaks, shared progress, and simple, clean task management – without the stress of competition.
 
-## Get started
+---
 
-1. Install dependencies
+## 📸 Screenshots
 
-   ```bash
+| Sign-Up | Sign-In | Home |
+|---------|---------|------|
+| ![Sign-Up Screen](screenshots/signup.png) | ![Sign-In Screen](screenshots/signin.png) | ![Home Screen](screenshots/home.png) |
+
+---
+
+## ✨ Features (Current Progress)
+- **🔑 User Authentication** – Email/Password sign-up & sign-in.
+- **🏠 Home Screen** – Calendar-like task layout with filters.
+- **📝 Task Management** – Create, edit, and delete chores or habits.
+- **🔁 Recurring Task Management** – Daily, weekly, monthly, or custom frequency.
+- **👥 Group/Squad Support** *(planned)* – Assign and track group-based tasks.
+- **🔥 Streak Tracking** *(planned)* – Maintain motivation through streak-based standings.
+- **🎮 Gamification** *(planned)* – Achievements, badges, and rewards for top performers.
+
+---
+
+## 🛠 Tech Stack
+- **React Native (Expo)** – Cross-platform development.
+- **Zustand** – Lightweight state management.
+- **Supabase** – Backend & authentication.
+- **TypeScript** – Type safety and cleaner code.
+
+---
+
+## 📦 Installation
+
+1. **Clone the repository**
+   
+   git clone https://github.com/sovinirs/TidyRealmNative.git
+
+2. **Install dependencies**
+
    npm install
-   ```
 
-2. Start the app
+3. **Start the development server**
 
-   ```bash
-    npx expo start
-   ```
+   npx expo start
 
-In the output, you'll find options to open the app in a
+4. **Run on device or simulator**
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+   * Press `i` for iOS simulator (Mac only).
+   * Press `a` for Android emulator.
+   * Scan the QR code in Expo Go app for physical device testing.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+## 📂 Project Structure
 ```
+.
+├── assets/              # App images, icons, fonts
+├── components/          # Reusable UI components
+├── hooks/               # Custom React hooks
+├── screens/             # App screen components
+├── store/               # Zustand state management
+├── utils/               # Utility functions
+├── App.tsx              # Entry point
+└── README.md
+```
+---
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## 🚀 Roadmap
 
-## Learn more
+* [x] User authentication (sign-up, sign-in)
+* [x] Recurring task creation & management
+* [ ] Group/squad creation & shared task assignment
+* [ ] Streak-based standings & progress tracking
+* [ ] Gamified rewards system
+* [ ] Push notifications & reminders
 
-To learn more about developing your project with Expo, look at the following resources:
+---
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 🤝 Contributing
 
-## Join the community
+Contributions are welcome!
+If you’d like to contribute:
 
-Join our community of developers creating universal apps.
+1. Fork the repo
+2. Create a new branch (`feature/new-feature`)
+3. Commit your changes
+4. Push the branch and open a Pull Request
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+
+## 📜 License
+
+This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 💡 About
+
+Quotidy is currently in **MVP development** and focuses on recurring task management as the foundation for a full group accountability platform.
+
