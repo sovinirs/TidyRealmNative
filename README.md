@@ -8,9 +8,9 @@ Stay motivated through streaks, shared progress, and simple, clean task manageme
 
 ## 📸 Screenshots
 
-| Sign-Up | Sign-In | Home |
-|---------|---------|------|
-| ![Sign-Up Screen](screenshots/signup.png) | ![Sign-In Screen](screenshots/signin.png) | ![Home Screen](screenshots/home.png) |
+| Sign-Up | Home |
+|---------|------|
+| <img src="screenshots/signup.png" width="264" height="572"> | <img src="screenshots/home.png" width="264" height="572">  |
 
 ---
 
